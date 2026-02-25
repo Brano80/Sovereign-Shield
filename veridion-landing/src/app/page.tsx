@@ -494,36 +494,69 @@ export default function Home() {
         <section id="pricing" className="py-12 bg-sky-50 border-t border-sky-100">
           <div className="max-w-6xl mx-auto px-6">
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-extrabold text-slate-900 mb-3 uppercase">Pricing Simulator</h2>
-              <p className="text-slate-600 max-w-2xl mx-auto">Pay per transfer evaluated. Compliance cost scales with your AI activity — not with headcount.</p>
+              <h2 className="text-3xl font-extrabold text-slate-900 mb-3 uppercase">Simple, Usage-Based Pricing</h2>
+              <p className="text-slate-600 max-w-2xl mx-auto">Start free. Scale as your AI agents grow. No compliance headcount needed.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 bg-white p-8 rounded-2xl shadow-lg border border-slate-200">
-              <div className="space-y-8 flex flex-col justify-center">
-                <div>
-                  <div className="flex justify-between items-end mb-4">
-                    <label className="text-sm font-bold text-slate-500 uppercase tracking-wider">Monthly Transfer Evaluations</label>
-                    <span className="text-lg font-bold text-sky-600">{evalCount.toLocaleString()} Evaluations</span>
-                  </div>
-                  <input
-                    type="range" min="10000" max="1000000" step="10000"
-                    value={evalCount} onChange={handleSliderChange}
-                    className="w-full h-2 bg-sky-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-6 bg-slate-900 text-white rounded-xl shadow-lg text-center">
-                    <div className="text-xs text-slate-400 mb-1 uppercase tracking-widest">Monthly Cost</div>
-                    <div className="text-3xl font-black text-white">${cost.toLocaleString()}</div>
-                  </div>
-                  <div className="p-6 bg-white border border-slate-200 rounded-xl flex flex-col justify-center text-center">
-                    <div className="text-xs text-slate-400 mb-1 uppercase tracking-widest">Model</div>
-                    <div className="text-sm font-black text-slate-800 tracking-tight">Usage Aligned</div>
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Free */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Developer</div>
+                <div className="text-4xl font-black text-slate-900 mb-1">$0</div>
+                <div className="text-slate-400 text-sm mb-6">Free forever</div>
+                <ul className="space-y-2 text-sm text-slate-600 flex-1">
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> 10,000 evaluations/month</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Sovereign Shield (ALLOW/BLOCK)</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> L1 Evidence Vault</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Community support</li>
+                </ul>
+                <div className="mt-6 text-center text-xs font-bold text-slate-400 uppercase border border-slate-200 rounded-lg py-2">Get API Key</div>
               </div>
-              <div className="chart-container">
-                <canvas ref={pricingChartRef}></canvas>
+
+              {/* Startup */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
+                <div className="text-xs font-bold text-sky-500 uppercase tracking-widest mb-3">Startup</div>
+                <div className="text-4xl font-black text-slate-900 mb-1">$49</div>
+                <div className="text-slate-400 text-sm mb-6">per month</div>
+                <ul className="space-y-2 text-sm text-slate-600 flex-1">
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> 100,000 evaluations/month</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> SCC Registry checks</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> L1 + L2 Evidence Vault</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Human review queue</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Email support</li>
+                </ul>
+                <div className="mt-6 text-center text-xs font-bold text-sky-600 uppercase border border-sky-200 bg-sky-50 rounded-lg py-2">Start Free Trial</div>
+              </div>
+
+              {/* Growth */}
+              <div className="bg-slate-900 border border-sky-500 rounded-2xl p-6 flex flex-col relative">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-sky-500 text-white text-[10px] font-black uppercase rounded-full">Most Popular</div>
+                <div className="text-xs font-bold text-sky-400 uppercase tracking-widest mb-3">Growth</div>
+                <div className="text-4xl font-black text-white mb-1">$199</div>
+                <div className="text-slate-400 text-sm mb-6">per month</div>
+                <ul className="space-y-2 text-sm text-slate-300 flex-1">
+                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> 1,000,000 evaluations/month</li>
+                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> Full L1–L3 Evidence Vault</li>
+                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> Crypto Shredder (GDPR Art. 17)</li>
+                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> TEE Provenance Sealing</li>
+                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> Priority support</li>
+                </ul>
+                <div className="mt-6 text-center text-xs font-bold text-white uppercase bg-sky-500 rounded-lg py-2">Get Started</div>
+              </div>
+
+              {/* Enterprise */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
+                <div className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-3">Enterprise</div>
+                <div className="text-4xl font-black text-slate-900 mb-1">Custom</div>
+                <div className="text-slate-400 text-sm mb-6">annual contract</div>
+                <ul className="space-y-2 text-sm text-slate-600 flex-1">
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Unlimited evaluations</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Full L1–L4 + Signicat QES</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> On-premise deployment</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> SLA + dedicated support</li>
+                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Custom SCC registry</li>
+                </ul>
+                <div className="mt-6 text-center text-xs font-bold text-indigo-600 uppercase border border-indigo-200 bg-indigo-50 rounded-lg py-2">Contact Sales</div>
               </div>
             </div>
           </div>
