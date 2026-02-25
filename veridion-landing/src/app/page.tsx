@@ -350,8 +350,8 @@ export default function Home() {
         {/* Section 3: Live Cockpit */}
         <section id="overview" className="py-12 bg-slate-900 text-white overflow-hidden">
           <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-extrabold mb-2 uppercase">SOVEREIGN SHIELD</h2>
+            <div className="text-left mb-8">
+              <h2 className="text-2xl font-extrabold mb-2 text-sky-400">SOVEREIGN SHIELD</h2>
               <p className="text-slate-400 text-sm">Every agent data transfer evaluated in real-time. Blocked transfers sealed as evidence. SCC status verified against the registry on every call.</p>
             </div>
 
