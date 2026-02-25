@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
+import VeridionLogo from "./VeridionLogo";
 
 declare global {
   interface Window {
@@ -200,8 +201,8 @@ export default function Home() {
         {/* Nav */}
         <nav className="fixed top-0 w-full z-50 glass shadow-sm border-b border-slate-200">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-            <a href="/" className="flex items-center gap-2">
-              <img src="/veridion-logo.svg" alt="Veridion Nexus" className="h-9 w-auto" />
+            <a href="/" className="flex items-center gap-2" aria-label="Veridion Nexus home">
+              <VeridionLogo className="h-9 w-auto" />
             </a>
             <div className="hidden md:flex gap-8 text-sm font-semibold text-slate-500">
               <a href="#market" className="hover:text-sky-600 transition-colors">Problem</a>
@@ -350,7 +351,7 @@ export default function Home() {
         <section id="overview" className="py-12 bg-slate-900 text-white overflow-hidden">
           <div className="max-w-6xl mx-auto px-6">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-extrabold mb-2 italic uppercase">Sovereign Shield — Live</h2>
+              <h2 className="text-3xl font-extrabold mb-2 uppercase">SOVEREIGN SHIELD</h2>
               <p className="text-slate-400 text-sm">Every agent data transfer evaluated in real-time. Blocked transfers sealed as evidence. SCC status verified against the registry on every call.</p>
             </div>
 
