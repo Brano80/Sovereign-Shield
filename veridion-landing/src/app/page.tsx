@@ -202,7 +202,7 @@ export default function Home() {
         <nav className="fixed top-0 w-full z-50 bg-[#080c14] shadow-sm border-b border-slate-800">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
             <a href="/" className="flex items-center gap-2" aria-label="Veridion Nexus home">
-              <VeridionLogo className="h-[4.5rem] w-auto" />
+              <VeridionLogo className="h-[4rem] w-auto" />
             </a>
             <div className="hidden md:flex gap-8 text-sm font-semibold text-slate-300">
               <a href="#market" className="hover:text-white transition-colors">Problem</a>
