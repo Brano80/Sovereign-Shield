@@ -199,16 +199,16 @@ export default function Home() {
       <div className="antialiased">
 
         {/* Nav */}
-        <nav className="fixed top-0 w-full z-50 glass shadow-sm border-b border-slate-200">
+        <nav className="fixed top-0 w-full z-50 bg-[#080c14] shadow-sm border-b border-slate-800">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
             <a href="/" className="flex items-center gap-2" aria-label="Veridion Nexus home">
               <VeridionLogo className="h-9 w-auto" />
             </a>
-            <div className="hidden md:flex gap-8 text-sm font-semibold text-slate-500">
-              <a href="#market" className="hover:text-sky-600 transition-colors">Problem</a>
-              <a href="#engine" className="hover:text-sky-600 transition-colors">Evidence</a>
-              <a href="#overview" className="hover:text-sky-600 transition-colors">Live</a>
-              <a href="#pricing" className="hover:text-sky-600 transition-colors">Pricing</a>
+            <div className="hidden md:flex gap-8 text-sm font-semibold text-slate-300">
+              <a href="#market" className="hover:text-white transition-colors">Problem</a>
+              <a href="#engine" className="hover:text-white transition-colors">Evidence</a>
+              <a href="#overview" className="hover:text-white transition-colors">Live</a>
+              <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
             </div>
           </div>
         </nav>
