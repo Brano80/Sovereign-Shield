@@ -296,8 +296,8 @@ export default function Home() {
         <section id="engine" className="py-12 max-w-6xl mx-auto px-6">
           <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-xl border border-slate-800 relative overflow-hidden mb-8">
             <div className="relative z-10">
-              <h2 className="text-2xl font-extrabold mb-2 text-sky-400">The Evidence Graph</h2>
-              <p className="text-lg md:text-xl text-slate-200 leading-relaxed mb-8">
+              <h2 className="text-2xl font-extrabold mb-2 text-sky-400">THE EVIDENCE GRAPH</h2>
+              <p className="text-sm text-slate-400 leading-relaxed mb-8">
                 Every transfer decision — ALLOW, BLOCK, or REVIEW — is sealed into an <strong>append-only cryptographic chain</strong>. Tamper-evident. Timestamped. Linked to the exact GDPR article that determined the outcome. Four sealing tiers, from technical audit trail to courtroom-grade QES signatures.
               </p>
 
