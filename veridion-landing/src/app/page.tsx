@@ -383,7 +383,7 @@ export default function Home() {
 
                 <div className="bg-slate-800 border border-white/10 p-5 rounded-2xl flex-1 min-h-0 flex flex-col overflow-hidden">
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex-shrink-0">SCC Registry Status</h4>
-                  <div className="space-y-4 flex-1 min-h-0 overflow-y-auto">
+                  <div className="space-y-4 flex-1 min-h-0">
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <div className="text-xs font-medium text-slate-300">Art. 33(1) Breach Notification (72h)</div>
@@ -409,15 +409,6 @@ export default function Home() {
                       </div>
                       <div className="w-full bg-slate-700 h-1 rounded-full overflow-hidden">
                         <div className="bg-rose-400 h-full w-full"></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <div className="text-xs font-medium text-slate-300">SCC — Azure EU</div>
-                        <div className="text-xs font-mono text-emerald-400">Valid</div>
-                      </div>
-                      <div className="w-full bg-slate-700 h-1 rounded-full overflow-hidden">
-                        <div className="bg-emerald-400 h-full w-[85%]"></div>
                       </div>
                     </div>
                   </div>
