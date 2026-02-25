@@ -1,0 +1,75 @@
+# Veridion API Master
+
+---
+description: Veridion API master rules - standalone service, own database
+globs:
+  - "**/*.rs"
+  - "**/*.toml"
+  - "**/*.sql"
+  - "**/*.md"
+---
+
+# VERIDION API - Master Project Rules
+
+You are working on **Veridion API**, a standalone HTTP service with its **own database** and migrations. It is **not** veridion-nexus.
+
+## ALWAYS READ FIRST
+- `VERIDION_API_PROJECT_REFERENCE.md` - the definitive project reference
+
+## WHAT THIS PROJECT IS
+- Standalone API service: Evidence Vault, Sovereign Shield, Review Queue (Human Oversight), Crypto Shredder
+- Own PostgreSQL database: users, compliance_records, human_oversight, encrypted_log_keys, evidence_events
+- No shared code or migration path with veridion-nexus
+- Built from scratch using veridion-nexus only as a reference for understanding logic
+
+## FOUR PILLARS (CORE FEATURES)
+1. **Evidence Vault** - Immutable, cryptographically sealed audit trail (hash chains, Nexus Seals)
+2. **Sovereign Shield** - International data transfer monitoring and enforcement (GDPR Art. 44-49)
+3. **Review Queue (Human Oversight)** - EU AI Act Art. 14 human review of AI decisions
+4. **Crypto Shredder** - GDPR Art. 17 right to erasure via cryptographic key destruction
+
+## FEATURE FLOW
+- **Sovereign Shield** → Makes decisions (ALLOW/BLOCK/REVIEW), creates evidence
+- **Review Queue** → When SS triggers REVIEW, creates review entry for human decision
+- **Evidence Vault** → Stores all evidence (from SS decisions and review decisions)
+- **Crypto Shredder** → Function used by Evidence Vault for erasure operations
+
+## SEVEN DESIGN DECISIONS (NEVER VIOLATE)
+1. Strictest-wins aggregation - Any BLOCK = final BLOCK
+2. REVIEW as safe default - Insufficient context = REVIEW, not ALLOW
+3. Evidence is immutable - Append-only, never UPDATE or DELETE
+4. Hash chain integrity - Every event links to previous via `previous_hash`
+5. Nexus Seal required - SHA-256(`payload_hash` + `previous_hash` + salt)
+6. Human oversight for REVIEW - All REVIEW decisions go to Review Queue
+7. Crypto shredding is permanent - Once key is shredded, data is unrecoverable
+
+## LANGUAGE RULES (NEVER VIOLATE)
+- Never say "compliant", "certified", "guaranteed compliance", "X% compliant"
+- Always say "provides structured, time-bound evidence" or "supports demonstrable compliance"
+
+## TECHNOLOGY
+- Rust (Actix-web v4), PostgreSQL, SQLx, SHA-256 hash chains
+- AES-256-GCM for Crypto Shredder encryption
+- JWT for authentication
+
+## CRITICAL TYPES
+- `EvidenceEventRow` in `src/models.rs` - immutable audit event
+- `Decision` enum: ALLOW, BLOCK, REVIEW
+- `EventSeverity`: L1 (critical), L2 (high), L3 (medium), L4 (low)
+- Regulatory tags: GDPR, DORA, NIS2, AI_ACT
+
+## COMPLIANCE FACTORY WORKFLOW
+Follow this workflow for all compliance features:
+1. **REGULUS** - Determine applicable regulations and articles, write Regulatory Contract
+2. **ARCHON** - Design technical architecture, write Design Contract
+3. **FORGER** - Implement code following Design Contract
+4. **AUDITOR** - Review code for compliance correctness before merge
+5. **SENTINEL** - Write tests that verify regulatory compliance
+
+## MIGRATIONS
+- `./migrations/` only (001–006). Do not reference `../veridion-nexus/migrations` or any path outside this project.
+- Schema matches four pillars: users, compliance_records, human_oversight, encrypted_log_keys, evidence_events
+
+## CONFIGURATION
+- `.env`: DATABASE_URL, SERVER_HOST, SERVER_PORT, ALLOWED_ORIGINS, RUST_ENV
+- Optional: JWT_SECRET, MIGRATIONS_PATH, RESET_MIGRATIONS, VERIDION_MASTER_KEY, NEXUS_SEAL_SALT

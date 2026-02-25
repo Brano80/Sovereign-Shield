@@ -1,0 +1,417 @@
+[
+  {
+    "regulation": "GDPR",
+    "article": "5",
+    "name": "Principles & lawfulness",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Block processing if no lawful basis; soft block to allow human override within SLA."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "6",
+    "name": "Lawful basis check",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Consent/contract/legal obligation; deny when basis missing or expired."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "7",
+    "name": "Consent conditions",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Verify demonstrable consent; revoke -> soft block."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "12",
+    "name": "Transparent information",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive disclosure injection; workflows if template missing."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "17",
+    "name": "Right to erasure",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Trigger delete workflow; block further processing of flagged subject."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "18",
+    "name": "Restriction of processing",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Soft block until claim resolved."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "20",
+    "name": "Data portability",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Workflow to package/export; no inline block."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "21",
+    "name": "Objection",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Soft block processing unless overriding legitimate interest documented."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "22",
+    "name": "Automated decisions",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Hold high-risk automated decisions pending human review."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "32",
+    "name": "Security of processing",
+    "level": "L4",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Evidence capture of controls; no inline block."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "33",
+    "name": "Breach notification",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Trigger breach workflow + 72h timer; assistive."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "35",
+    "name": "DPIA",
+    "level": "L4",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Evidence workflow; flag missing DPIA for high-risk."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "44-49",
+    "name": "Transfers",
+    "level": "L1",
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Adequacy/SCC/BCR/derogations; high-risk geos hard block."
+  },
+  {
+    "regulation": "GDPR",
+    "article": "12_evidence",
+    "name": "Audit & evidence",
+    "level": "L4",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Logging/sealing for transparency events."
+  },
+
+  {
+    "regulation": "DORA",
+    "article": "6",
+    "name": "Risk management overview",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive workflows for risk heatmap."
+  },
+  {
+    "regulation": "DORA",
+    "article": "7",
+    "name": "ICT asset inventory",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Inventory completeness checks; no inline block."
+  },
+  {
+    "regulation": "DORA",
+    "article": "8",
+    "name": "Change management",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive gates for ICT changes."
+  },
+  {
+    "regulation": "DORA",
+    "article": "9",
+    "name": "ICT policy engine",
+    "level": "L1",
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Default deny; geo/vendor/protocol/time/volume/risk layers."
+  },
+  {
+    "regulation": "DORA",
+    "article": "11",
+    "name": "Operational resilience",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive triggers for resilience drills."
+  },
+  {
+    "regulation": "DORA",
+    "article": "13",
+    "name": "Incident classification",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Soft block risky operations pending classification."
+  },
+  {
+    "regulation": "DORA",
+    "article": "14",
+    "name": "Incident reporting",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Trigger report workflow; timers."
+  },
+  {
+    "regulation": "DORA",
+    "article": "17",
+    "name": "Major incident handling",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Soft block risky flows until incident state cleared."
+  },
+  {
+    "regulation": "DORA",
+    "article": "19",
+    "name": "Incident notifications",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Workflow with 4h/72h/1m timers."
+  },
+  {
+    "regulation": "DORA",
+    "article": "20",
+    "name": "Testing",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive; no inline block."
+  },
+  {
+    "regulation": "DORA",
+    "article": "21",
+    "name": "Third-party register",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive data completeness."
+  },
+  {
+    "regulation": "DORA",
+    "article": "24",
+    "name": "Contractual clauses",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Soft block onboarding vendor until clauses verified."
+  },
+  {
+    "regulation": "DORA",
+    "article": "25",
+    "name": "Exit strategies",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive checks; no inline block."
+  },
+  {
+    "regulation": "DORA",
+    "article": "27",
+    "name": "Incident comms",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive notifications."
+  },
+  {
+    "regulation": "DORA",
+    "article": "28-30",
+    "name": "TPRM & SLA monitoring",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Soft block risky vendor activity; SLA breach escalation."
+  },
+
+  {
+    "regulation": "EU AI Act",
+    "article": "5",
+    "name": "Prohibited practices",
+    "level": "L1",
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Hard block for detected patterns."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "9",
+    "name": "Risk management system",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive risk workflows."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "10",
+    "name": "Data governance",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Dataset registry + deploy gate."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "11",
+    "name": "Technical documentation",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive evidence capture."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "12",
+    "name": "Record-keeping",
+    "level": "L4",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Sealed logs."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "13",
+    "name": "Transparency",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Disclosure middleware; fail-closed on missing template."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "14",
+    "name": "Human oversight",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Soft block if oversight not confirmed."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "15",
+    "name": "Accuracy/robustness",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Drift monitoring; optional rollback flag."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "24",
+    "name": "Logs",
+    "level": "L4",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Evidence logging."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "50",
+    "name": "Watermarking",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "C2PA manifest required; soft block if cannot stamp."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "52",
+    "name": "Transparency obligations",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Disclose AI interaction; block if disclosure unavailable."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "53",
+    "name": "High-risk monitoring",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive monitoring."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "54",
+    "name": "Post-market monitoring",
+    "level": "L3",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Assistive; workflow triggers."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "72",
+    "name": "Penalties",
+    "level": "L4",
+    "default_action_on_timeout": "allow",
+    "fallback_on_miss": "allow",
+    "notes": "Evidence for audit; no inline block."
+  },
+  {
+    "regulation": "EU AI Act",
+    "article": "General-purpose",
+    "name": "GPAI disclosures",
+    "level": "L2",
+    "human_sla_hours": 4,
+    "default_action_on_timeout": "deny",
+    "fallback_on_miss": "deny",
+    "notes": "Soft block GPAI outputs until disclosures applied."
+  }
+]
+
