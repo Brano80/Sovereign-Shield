@@ -168,7 +168,7 @@ export default function EvidenceVaultPage() {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">EVIDENCE VAULT</h1>
-            <p className="text-sm text-slate-400">GDPR Art. 32 • Audit Archive & Evidence Chain</p>
+            <p className="text-sm text-slate-400">GDPR Art. 5(2), 24, 30, 32 • Audit Archive & Evidence Chain</p>
           </div>
           <div className="flex items-center gap-2">
             <button

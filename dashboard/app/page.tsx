@@ -61,7 +61,7 @@ export default function SovereignShieldPage() {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">SOVEREIGN SHIELD</h1>
-            <p className="text-sm text-slate-400">GDPR Art. 44-49 • International Data Transfers</p>
+            <p className="text-sm text-slate-400">GDPR Chapter V (Art. 44-49) • International Data Transfers</p>
           </div>
           <div className="flex gap-2">
             <button

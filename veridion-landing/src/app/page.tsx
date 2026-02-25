@@ -22,7 +22,7 @@ export default function Home() {
   const [decisions, setDecisions] = useState<Array<{ time: string; action: string; reg: string; isBlock: boolean }>>([]);
 
   const actions = ["data_transfer", "cross_border_sync", "pii_export", "llm_api_call", "s3_upload", "db_export"];
-  const regs = ["GDPR Art.44", "GDPR Art.46", "SCC Required", "Art.45 Adequacy"];
+  const regs = ["Art. 44 (Principle)", "Art. 45 (Adequacy)", "Art. 46 (SCC/safeguards)", "Art. 49 (Derogations)"];
 
   const tierData = {
     L1: {
@@ -216,14 +216,14 @@ export default function Home() {
         <header className="pt-32 pb-16 px-6 max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-sky-50 border border-sky-200 rounded-full text-sky-600 text-xs font-bold uppercase tracking-widest mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse inline-block"></span>
-            GDPR Art. 44-49 — Runtime Enforcement
+            GDPR Chapter V (Art. 44-49) — Runtime Enforcement
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter text-slate-900 mb-4 uppercase italic">
             EU Data Transfers.<br /><span className="gradient-text">Enforced at Runtime.</span>
           </h1>
           <p className="text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
             Every time an AI agent moves personal data across borders, it's a regulatory event. Veridion Nexus is the{" "}
-            <span className="font-bold text-slate-900 italic">Sovereign Shield</span> — a runtime enforcement engine that evaluates every transfer against GDPR Art. 44-49, blocks illegal ones, and seals cryptographic evidence before the data moves.
+            <span className="font-bold text-slate-900 italic">Sovereign Shield</span> — a runtime enforcement engine that evaluates every transfer against GDPR Chapter V (Art. 44-49), blocks transfers without a legal basis, and seals cryptographic evidence before the data moves.
           </p>
           <div className="mt-8 flex flex-wrap gap-3 justify-center text-xs font-bold">
             <span className="px-3 py-1.5 bg-slate-900 text-white rounded-full">Sovereign Shield</span>
@@ -239,7 +239,7 @@ export default function Home() {
             <div className="max-w-3xl mb-10">
               <h2 className="text-2xl font-bold text-slate-900 mb-3">Every AI Agent Call Is a Potential GDPR Violation</h2>
               <p className="text-slate-600 leading-relaxed">
-                When an AI agent calls OpenAI, uploads to AWS S3, or queries an external API — it transfers EU personal data across borders. Under <strong>GDPR Art. 44-49</strong>, every single transfer requires a legal basis: an adequacy decision, a valid Standard Contractual Clause, or a binding corporate rule. Most don't have one.
+                When an AI agent calls OpenAI, uploads to AWS S3, or queries an external API — it transfers EU personal data across borders. Under <strong>GDPR Chapter V (Art. 44-49)</strong>, every transfer requires a legal basis: an adequacy decision (Art. 45), appropriate safeguards such as Standard Contractual Clauses or binding corporate rules (Art. 46), or, in specific cases, derogations (Art. 49). Most don't have one.
               </p>
             </div>
 
@@ -247,7 +247,7 @@ export default function Home() {
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div className="text-slate-500 text-sm font-bold uppercase tracking-widest mb-2">Max Fine (GDPR)</div>
                 <div className="text-4xl font-extrabold text-slate-900 mb-2">4%</div>
-                <div className="text-slate-400 text-sm font-medium">Of global annual turnover for Art. 44 transfer violations.</div>
+                <div className="text-slate-400 text-sm font-medium">Of global annual turnover for serious infringements including unlawful transfers (Art. 83(5) GDPR).</div>
               </div>
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div className="text-slate-500 text-sm font-bold uppercase tracking-widest mb-2">Non-Adequate Countries</div>
@@ -386,7 +386,7 @@ export default function Home() {
                   <div className="space-y-4">
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <div className="text-xs font-medium text-slate-300">GDPR Breach Notification (72h)</div>
+                        <div className="text-xs font-medium text-slate-300">Art. 33(1) Breach Notification (72h)</div>
                         <div className="text-xs font-mono text-sky-400">71:24:59</div>
                       </div>
                       <div className="w-full bg-slate-700 h-1 rounded-full overflow-hidden">

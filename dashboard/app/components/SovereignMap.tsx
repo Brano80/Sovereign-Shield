@@ -17,10 +17,10 @@ interface CountryData {
   transfers: number;
 }
 
-// SCC-required countries: US, AU, BR, MX, SG, ZA (always orange)
-const SCC_REQUIRED_COUNTRIES = new Set(['US', 'AU', 'BR', 'MX', 'SG', 'ZA']);
-// Blocked countries: CN, RU, KP, IR, SY, VE, BY (always red)
-const BLOCKED_COUNTRIES = new Set(['CN', 'RU', 'KP', 'IR', 'SY', 'VE', 'BY']);
+// SCC-required countries (align with Adequate Countries page): US, IN, AU, BR, MX, SG, ZA, etc.
+const SCC_REQUIRED_COUNTRIES = new Set(['US', 'IN', 'AU', 'BR', 'MX', 'SG', 'ZA', 'ID', 'TR', 'PH', 'VN', 'EG', 'NG', 'PK', 'BD', 'TH', 'MY']);
+// Blocked countries (align with Adequate Countries page): CN, RU, KP, IR, SY, BY
+const BLOCKED_COUNTRIES = new Set(['CN', 'RU', 'KP', 'IR', 'SY', 'BY']);
 
 // Adequate countries (EU-recognised)
 const ADEQUATE_COUNTRIES = new Set([

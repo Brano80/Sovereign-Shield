@@ -86,15 +86,21 @@ export default function AdequateCountriesPage() {
           <p className="text-slate-400 text-sm">
             EU adequacy, SCC-required, and blocked destinations
           </p>
+          <p className="text-slate-500 text-xs mt-2">
+            Based on EU Commission adequacy decisions where applicable. Lists may not be exhaustive or current; check official Commission sources. Last reviewed: February 2026.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* EU-Recognised Adequate Countries */}
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 flex flex-col">
             <h2 className="text-lg font-semibold text-white mb-1">EU-Recognised Adequate Countries</h2>
-            <p className="text-slate-400 text-sm mb-4">
-              Valid EU Commission adequacy decisions
+            <p className="text-slate-400 text-sm mb-2">
+              Valid EU Commission adequacy decisions (Art. 45)
             </p>
+            <a href="https://commission.europa.eu/law/law-topic/data-protection/international-dimension-data-protection/adequacy-decisions_en" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 mb-4 inline-block">
+              Official Commission adequacy list →
+            </a>
             <div className="grid grid-cols-1 gap-3 flex-1">
               {adequateCountries.map((country) => (
                 <CountryCard
@@ -131,7 +137,7 @@ export default function AdequateCountriesPage() {
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 flex flex-col">
             <h2 className="text-lg font-semibold text-white mb-1">Blocked Countries</h2>
             <p className="text-slate-400 text-sm mb-4">
-              No transfer permitted under policy
+              No transfer permitted under organisational policy (GDPR does not prohibit any country by name; a legal basis is required)
             </p>
             <div className="grid grid-cols-1 gap-3 flex-1">
               {blockedCountries.map((country) => (
@@ -147,10 +153,13 @@ export default function AdequateCountriesPage() {
           </div>
         </div>
 
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-2">
           <p className="text-sm text-slate-400">
             <strong className="text-white">Note:</strong> EU-Recognised adequate countries permit transfers under GDPR Article 45 without additional safeguards.
-            SCC-required countries need Standard Contractual Clauses or other approved transfer tools. Blocked countries are not permitted as transfer destinations under current policy.
+            SCC-required countries need appropriate safeguards under Art. 46 (e.g. Standard Contractual Clauses, BCRs). In specific cases, derogations under Art. 49 may apply. Blocked countries are not permitted as transfer destinations under current organisational policy; the GDPR does not prohibit transfers to any specific country by name.
+          </p>
+          <p className="text-xs text-slate-500">
+            This page is for illustration and policy reference only. It does not constitute legal advice. Verify current adequacy and safeguard requirements with official sources and legal counsel.
           </p>
         </div>
       </div>
