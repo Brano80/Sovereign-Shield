@@ -224,12 +224,12 @@ export default function Home() {
           </h1>
           <p className="text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
             Every time an AI agent moves personal data across borders, it's a regulatory event. Veridion Nexus is the{" "}
-            <span className="font-bold text-slate-900 underline decoration-sky-500 decoration-4">Sovereign Shield</span> — a runtime enforcement engine that evaluates every transfer against GDPR Art. 44-49, blocks illegal ones, and seals cryptographic evidence before the data moves.
+            <span className="font-bold text-slate-900 italic">Sovereign Shield</span> — a runtime enforcement engine that evaluates every transfer against GDPR Art. 44-49, blocks illegal ones, and seals cryptographic evidence before the data moves.
           </p>
           <div className="mt-8 flex flex-wrap gap-3 justify-center text-xs font-bold">
             <span className="px-3 py-1.5 bg-slate-900 text-white rounded-full">Sovereign Shield</span>
             <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">Evidence Vault</span>
-            <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">Crypto Shredder</span>
+            <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">Cryptographic Shredder</span>
             <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">Human Oversight</span>
           </div>
         </header>
