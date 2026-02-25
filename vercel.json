@@ -1,6 +1,3 @@
 {
-  "buildCommand": "cd veridion-landing && npm run build",
-  "outputDirectory": "veridion-landing/.next",
-  "installCommand": "cd veridion-landing && npm install",
-  "framework": "nextjs"
+  "rootDirectory": "veridion-landing"
 }

@@ -200,10 +200,9 @@ export default function Home() {
         {/* Nav */}
         <nav className="fixed top-0 w-full z-50 glass shadow-sm border-b border-slate-200">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black italic">V</div>
-              <span className="text-xl font-bold tracking-tighter text-slate-900 uppercase">Veridion Nexus</span>
-            </div>
+            <a href="/" className="flex items-center gap-2">
+              <img src="/veridion-logo.svg" alt="Veridion Nexus" className="h-9 w-auto" />
+            </a>
             <div className="hidden md:flex gap-8 text-sm font-semibold text-slate-500">
               <a href="#market" className="hover:text-sky-600 transition-colors">Problem</a>
               <a href="#engine" className="hover:text-sky-600 transition-colors">Evidence</a>

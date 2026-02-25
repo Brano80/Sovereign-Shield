@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 200" width="820" height="200">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,900;1,900&amp;display=swap');
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="820" height="200" fill="#080c14"/>
+
+  <!-- Subtle top edge glow -->
+  <rect width="820" height="2" fill="#1e40af" opacity="0.6"/>
+
+  <!-- VERIDION + nexus on same line -->
+  <text
+    x="36"
+    y="118"
+    font-family="'Arial Black', 'Impact', sans-serif"
+    font-size="82"
+    font-weight="900"
+    font-style="italic"
+    fill="white"
+    letter-spacing="-2"
+  >VERIDION<tspan
+      font-family="'Arial', sans-serif"
+      font-size="52"
+      font-weight="400"
+      font-style="italic"
+      fill="#22d3a5"
+      letter-spacing="4"
+      dx="6"
+    >nexus</tspan></text>
+
+  <!-- Divider line -->
+  <line x1="36" y1="148" x2="784" y2="148" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- Tagline: EVALUATED -->
+  <text
+    x="36"
+    y="172"
+    font-family="'Arial', sans-serif"
+    font-size="11"
+    font-weight="700"
+    fill="#475569"
+    letter-spacing="4"
+  >EVALUATED</text>
+
+  <!-- em dash 1 -->
+  <text x="138" y="172" font-family="'Arial', sans-serif" font-size="11" fill="#334155" letter-spacing="4"> — </text>
+
+  <!-- ENFORCED highlighted -->
+  <text
+    x="172"
+    y="172"
+    font-family="'Arial', sans-serif"
+    font-size="11"
+    font-weight="700"
+    fill="#1d4ed8"
+    letter-spacing="4"
+  >ENFORCED</text>
+
+  <!-- em dash 2 -->
+  <text x="268" y="172" font-family="'Arial', sans-serif" font-size="11" fill="#334155" letter-spacing="4"> — </text>
+
+  <!-- SEALED -->
+  <text
+    x="302"
+    y="172"
+    font-family="'Arial', sans-serif"
+    font-size="11"
+    font-weight="700"
+    fill="#475569"
+    letter-spacing="4"
+  >SEALED</text>
+
+</svg>

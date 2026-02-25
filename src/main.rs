@@ -33,6 +33,15 @@ struct LoginResponse {
     user: UserResponse,
 }
 
+#[get("/")]
+async fn index() -> HttpResponse {
+    HttpResponse::Ok().json(serde_json::json!({
+        "name": "Veridion API",
+        "version": "1.0.0",
+        "docs": "GET /health, GET /api/v1/auth/dev-bypass, GET /api/v1/evidence/events"
+    }))
+}
+
 #[get("/health")]
 async fn health() -> HttpResponse {
     HttpResponse::Ok().json(serde_json::json!({
@@ -229,12 +238,21 @@ async fn main() -> std::io::Result<()> {
     }
 
     println!("Running migrations from {:?}...", migrations_dir);
-    sqlx::migrate::Migrator::new(migrations_dir)
+    let migrator = sqlx::migrate::Migrator::new(migrations_dir)
         .await
-        .expect("Failed to create migrator")
-        .run(&pool)
-        .await
-        .expect("Failed to run migrations");
+        .expect("Failed to create migrator");
+    if let Err(e) = migrator.run(&pool).await {
+        if matches!(e, sqlx::migrate::MigrateError::VersionMismatch(_)) {
+            println!("Migration version mismatch detected. Resetting _sqlx_migrations and retrying...");
+            sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
+                .execute(&pool)
+                .await
+                .expect("Failed to drop _sqlx_migrations");
+            migrator.run(&pool).await.expect("Failed to run migrations after reset");
+        } else {
+            panic!("Failed to run migrations: {:?}", e);
+        }
+    }
     println!("Migrations applied.");
 
     let origins: Vec<String> = allowed_origins.split(',').map(|s| s.trim().to_string()).collect();
@@ -262,6 +280,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .wrap(cors)
+            .service(index)
             .service(health)
             .service(dev_bypass)
             .service(system_config)
