@@ -18,6 +18,7 @@ export default function Home() {
   const [chartLoaded, setChartLoaded] = useState(false);
   const [selectedTier, setSelectedTier] = useState("L1");
   const [enforcementMode, setEnforcementMode] = useState(true);
+  const [selectedPlan, setSelectedPlan] = useState("Growth");
   const [decisions, setDecisions] = useState<Array<{ time: string; action: string; reg: string; isBlock: boolean }>>([]);
 
   const actions = ["data_transfer", "cross_border_sync", "pii_export", "llm_api_call", "s3_upload", "db_export"];
@@ -499,65 +500,69 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Free */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Developer</div>
-                <div className="text-4xl font-black text-slate-900 mb-1">$0</div>
-                <div className="text-slate-400 text-sm mb-6">Free forever</div>
-                <ul className="space-y-2 text-sm text-slate-600 flex-1">
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> 10,000 evaluations/month</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Sovereign Shield (ALLOW/BLOCK)</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> L1 Evidence Vault</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Community support</li>
-                </ul>
-                <div className="mt-6 text-center text-xs font-bold text-slate-400 uppercase border border-slate-200 rounded-lg py-2">Get API Key</div>
-              </div>
-
-              {/* Startup */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-                <div className="text-xs font-bold text-sky-500 uppercase tracking-widest mb-3">Startup</div>
-                <div className="text-4xl font-black text-slate-900 mb-1">$49</div>
-                <div className="text-slate-400 text-sm mb-6">per month</div>
-                <ul className="space-y-2 text-sm text-slate-600 flex-1">
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> 100,000 evaluations/month</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> SCC Registry checks</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> L1 + L2 Evidence Vault</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Human review queue</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Email support</li>
-                </ul>
-                <div className="mt-6 text-center text-xs font-bold text-sky-600 uppercase border border-sky-200 bg-sky-50 rounded-lg py-2">Start Free Trial</div>
-              </div>
-
-              {/* Growth */}
-              <div className="bg-slate-900 border border-sky-500 rounded-2xl p-6 flex flex-col relative">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-sky-500 text-white text-[10px] font-black uppercase rounded-full">Most Popular</div>
-                <div className="text-xs font-bold text-sky-400 uppercase tracking-widest mb-3">Growth</div>
-                <div className="text-4xl font-black text-white mb-1">$199</div>
-                <div className="text-slate-400 text-sm mb-6">per month</div>
-                <ul className="space-y-2 text-sm text-slate-300 flex-1">
-                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> 1,000,000 evaluations/month</li>
-                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> Full L1–L3 Evidence Vault</li>
-                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> Crypto Shredder (GDPR Art. 17)</li>
-                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> TEE Provenance Sealing</li>
-                  <li className="flex gap-2"><span className="text-emerald-400 font-bold">✓</span> Priority support</li>
-                </ul>
-                <div className="mt-6 text-center text-xs font-bold text-white uppercase bg-sky-500 rounded-lg py-2">Get Started</div>
-              </div>
-
-              {/* Enterprise */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-                <div className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-3">Enterprise</div>
-                <div className="text-4xl font-black text-slate-900 mb-1">Custom</div>
-                <div className="text-slate-400 text-sm mb-6">annual contract</div>
-                <ul className="space-y-2 text-sm text-slate-600 flex-1">
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Unlimited evaluations</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Full L1–L4 + Signicat QES</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> On-premise deployment</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> SLA + dedicated support</li>
-                  <li className="flex gap-2"><span className="text-emerald-500 font-bold">✓</span> Custom SCC registry</li>
-                </ul>
-                <div className="mt-6 text-center text-xs font-bold text-indigo-600 uppercase border border-indigo-200 bg-indigo-50 rounded-lg py-2">Contact Sales</div>
-              </div>
+              {[
+                {
+                  name: "Developer",
+                  price: "$0",
+                  sub: "Free forever",
+                  cta: "Get API Key",
+                  features: ["10,000 evaluations/month", "Sovereign Shield (ALLOW/BLOCK)", "L1 Evidence Vault", "Community support"],
+                },
+                {
+                  name: "Startup",
+                  price: "$49",
+                  sub: "per month",
+                  cta: "Start Free Trial",
+                  features: ["100,000 evaluations/month", "SCC Registry checks", "L1 + L2 Evidence Vault", "Human review queue", "Email support"],
+                },
+                {
+                  name: "Growth",
+                  price: "$199",
+                  sub: "per month",
+                  cta: "Get Started",
+                  badge: "Most Popular",
+                  features: ["1,000,000 evaluations/month", "Full L1–L3 Evidence Vault", "Crypto Shredder (GDPR Art. 17)", "TEE Provenance Sealing", "Priority support"],
+                },
+                {
+                  name: "Enterprise",
+                  price: "Custom",
+                  sub: "annual contract",
+                  cta: "Contact Sales",
+                  features: ["Unlimited evaluations", "Full L1–L4 + Signicat QES", "On-premise deployment", "SLA + dedicated support", "Custom SCC registry"],
+                },
+              ].map((plan) => {
+                const isSelected = selectedPlan === plan.name;
+                return (
+                  <div
+                    key={plan.name}
+                    onClick={() => setSelectedPlan(plan.name)}
+                    className={`rounded-2xl p-6 flex flex-col relative cursor-pointer transition-all duration-200 ${
+                      isSelected
+                        ? "bg-slate-900 border border-sky-500 shadow-xl scale-[1.02]"
+                        : "bg-white border border-slate-200 hover:border-slate-400 hover:shadow-md"
+                    }`}
+                  >
+                    {plan.badge && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-sky-500 text-white text-[10px] font-black uppercase rounded-full">{plan.badge}</div>
+                    )}
+                    <div className={`text-xs font-bold uppercase tracking-widest mb-3 ${isSelected ? "text-sky-400" : "text-slate-400"}`}>{plan.name}</div>
+                    <div className={`text-4xl font-black mb-1 ${isSelected ? "text-white" : "text-slate-900"}`}>{plan.price}</div>
+                    <div className="text-slate-400 text-sm mb-6">{plan.sub}</div>
+                    <ul className="space-y-2 text-sm flex-1">
+                      {plan.features.map((f) => (
+                        <li key={f} className={`flex gap-2 ${isSelected ? "text-slate-300" : "text-slate-600"}`}>
+                          <span className="text-emerald-400 font-bold">✓</span> {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className={`mt-6 text-center text-xs font-bold uppercase rounded-lg py-2 ${
+                      isSelected
+                        ? "bg-sky-500 text-white"
+                        : "border border-slate-200 text-slate-400"
+                    }`}>{plan.cta}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
