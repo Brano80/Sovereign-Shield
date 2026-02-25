@@ -222,8 +222,7 @@ export default function Home() {
             EU Data Transfers.<br /><span className="gradient-text">Enforced at Runtime.</span>
           </h1>
           <p className="text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
-            Every time an AI agent moves personal data across borders, it's a regulatory event. Veridion Nexus is the{" "}
-            <span className="font-bold text-slate-900 italic">Sovereign Shield</span> — a runtime enforcement engine that evaluates every transfer against GDPR Chapter V (Art. 44-49), blocks transfers without a legal basis, and seals cryptographic evidence before the data moves.
+            Every time an AI agent moves personal data across borders, it's a regulatory event. Veridion Nexus is a runtime enforcement engine that evaluates every transfer against GDPR Chapter V (Art. 44-49), blocks transfers without a legal basis, and seals cryptographic evidence before the data moves.
           </p>
           <div className="mt-8 flex flex-wrap gap-3 justify-center text-xs font-bold">
             <span className="px-3 py-1.5 bg-slate-900 text-white rounded-full">Sovereign Shield</span>
