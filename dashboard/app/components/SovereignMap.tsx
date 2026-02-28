@@ -17,6 +17,12 @@ interface CountryData {
   transfers: number;
 }
 
+// EU/EEA countries (GDPR Art. 44-49 - no transfer restrictions within EU/EEA)
+const EU_EEA_COUNTRIES = new Set([
+  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT',
+  'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'IS', 'LI', 'NO'
+]);
+
 // SCC-required countries (align with Adequate Countries page): US, IN, AU, BR, MX, SG, ZA, etc.
 const SCC_REQUIRED_COUNTRIES = new Set(['US', 'IN', 'AU', 'BR', 'MX', 'SG', 'ZA', 'ID', 'TR', 'PH', 'VN', 'EG', 'NG', 'PK', 'BD', 'TH', 'MY']);
 // Blocked countries (align with Adequate Countries page): CN, RU, KP, IR, SY, BY
@@ -138,16 +144,20 @@ const SovereignMap: React.FC<SovereignMapProps> = ({ evidenceEvents = [], isLoad
       }
 
       // Determine status based on country classification
+      // Order matters: check EU/EEA first, then blocked, then SCC-required, then adequate, then unknown
       let status: 'adequate_protection' | 'scc_required' | 'blocked';
-      if (BLOCKED_COUNTRIES.has(countryCode)) {
+      if (EU_EEA_COUNTRIES.has(countryCode)) {
+        // EU/EEA countries are treated as adequate protection (no transfer restrictions)
+        status = 'adequate_protection';
+      } else if (BLOCKED_COUNTRIES.has(countryCode)) {
         status = 'blocked';
       } else if (SCC_REQUIRED_COUNTRIES.has(countryCode)) {
         status = 'scc_required';
       } else if (ADEQUATE_COUNTRIES.has(countryCode)) {
         status = 'adequate_protection';
       } else {
-        // Default to blocked for unknown countries
-        status = 'blocked';
+        // Default to SCC-required for unknown countries (safer than blocked per GDPR Art. 25)
+        status = 'scc_required';
       }
 
       // Use TopoJSON country name (full name, not code)

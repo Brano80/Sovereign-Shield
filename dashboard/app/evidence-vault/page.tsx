@@ -20,6 +20,21 @@ export default function EvidenceVaultPage() {
     destinationCountry: '',
     search: highlightedEventId || '',
   });
+  const [merkleRootsCount, setMerkleRootsCount] = useState(0);
+  const [lastVerifiedAt, setLastVerifiedAt] = useState<Date | null>(null);
+  const [page, setPage] = useState(1);
+
+  const EVENTS_PER_PAGE = 10;
+  const totalPages = Math.max(1, Math.ceil(events.length / EVENTS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedEvents = events.slice(
+    (currentPage - 1) * EVENTS_PER_PAGE,
+    currentPage * EVENTS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters.riskLevel, filters.destinationCountry, filters.search]);
 
   useEffect(() => {
     loadEvents();
@@ -80,6 +95,10 @@ export default function EvidenceVaultPage() {
     try {
       const result = await verifyIntegrity();
       setIntegrityStatus(result.status);
+      setLastVerifiedAt(new Date());
+      if (typeof (result as { merkleRootsCount?: number }).merkleRootsCount === 'number') {
+        setMerkleRootsCount((result as { merkleRootsCount: number }).merkleRootsCount);
+      }
     } catch (error) {
       console.error('Failed to verify integrity:', error);
       alert('Failed to verify integrity');
@@ -229,6 +248,46 @@ export default function EvidenceVaultPage() {
           </div>
         </div>
 
+        {/* KPI Cards */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-400 font-medium">MERKLE ROOTS</div>
+              <Database className="w-4 h-4 text-slate-500" />
+            </div>
+            <div className="text-2xl font-bold text-white">{merkleRootsCount}</div>
+            <div className="text-xs text-slate-500 mt-1">Sealed chain roots</div>
+          </div>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-400 font-medium">EVENTS SEALED</div>
+              <FileText className="w-4 h-4 text-slate-500" />
+            </div>
+            <div className="text-2xl font-bold text-white">{events.length}</div>
+            <div className="text-xs text-slate-500 mt-1">In current view</div>
+          </div>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-400 font-medium">CHAIN STATUS</div>
+              <Shield className="w-4 h-4 text-slate-500" />
+            </div>
+            <div className={`text-2xl font-bold ${integrityStatus === 'VALID' ? 'text-green-400' : integrityStatus === 'TAMPERED' ? 'text-red-400' : 'text-slate-400'}`}>
+              {integrityStatus ?? '—'}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">Integrity check result</div>
+          </div>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-400 font-medium">LAST VERIFIED</div>
+              <Clock className="w-4 h-4 text-slate-500" />
+            </div>
+            <div className="text-2xl font-bold text-white">
+              {lastVerifiedAt ? lastVerifiedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">When chain was verified</div>
+          </div>
+        </div>
+
         {/* Filters */}
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-4">
@@ -291,46 +350,16 @@ export default function EvidenceVaultPage() {
           </div>
         )}
 
-        {/* Quick Filter Chips */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-slate-400">Quick Filters:</span>
-          {(['', 'L1', 'L2', 'L3', 'L4'] as const).map((level) => (
-            <button
-              key={level}
-              onClick={() => handleFilterChange('riskLevel', level)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                filters.riskLevel === level
-                  ? level === '' 
-                    ? 'bg-blue-600 text-white'
-                    : level === 'L1'
-                    ? 'bg-green-600 text-white'
-                    : level === 'L2'
-                    ? 'bg-blue-600 text-white'
-                    : level === 'L3'
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-red-600 text-white'
-                  : level === ''
-                  ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                  : level === 'L1'
-                  ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                  : level === 'L2'
-                  ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
-                  : level === 'L3'
-                  ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
-                  : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-              }`}
-            >
-              {level === '' ? 'Show All' : `${level} - ${level === 'L1' ? 'Low' : level === 'L2' ? 'Medium' : level === 'L3' ? 'High' : 'Critical'}`}
-            </button>
-          ))}
-        </div>
-
         {/* Evidence Events Table */}
         <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
           <div className="p-4 border-b border-slate-700 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-white">Evidence Events Archive</h2>
-              <p className="text-xs text-slate-400 mt-1">{events.length} events found</p>
+              <p className="text-xs text-slate-400 mt-1">
+                {events.length === 0
+                  ? '0 events found'
+                  : `Showing ${(currentPage - 1) * EVENTS_PER_PAGE + 1}–${Math.min(currentPage * EVENTS_PER_PAGE, events.length)} of ${events.length} events`}
+              </p>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -342,6 +371,7 @@ export default function EvidenceVaultPage() {
                 <p className="text-sm text-slate-500">Try adjusting your filters or check back later for new events.</p>
               </div>
             ) : (
+              <>
               <table className="w-full">
                 <thead className="bg-slate-700/50">
                   <tr>
@@ -356,11 +386,12 @@ export default function EvidenceVaultPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {events.map((event, index) => {
+                  {paginatedEvents.map((event, index) => {
                     const isHighlighted = highlightedEventId && (
                       event.id === highlightedEventId ||
                       event.eventId === highlightedEventId
                     );
+                    const seq = (currentPage - 1) * EVENTS_PER_PAGE + index + 1;
                     return (
                       <tr
                         key={event.id}
@@ -376,7 +407,7 @@ export default function EvidenceVaultPage() {
                             </span>
                             <div className="text-xs text-slate-400">
                               <div>{event.eventId ?? 'N/A'}</div>
-                              <div className="text-slate-500">Seq: {index + 1}</div>
+                              <div className="text-slate-500">Seq: {seq}</div>
                             </div>
                           </div>
                         </td>
@@ -464,13 +495,33 @@ export default function EvidenceVaultPage() {
                   })}
                 </tbody>
               </table>
+              <div className="p-4 border-t border-slate-700 flex items-center justify-between">
+                <p className="text-xs text-slate-400">
+                  Evidence Vault maintains immutable audit trail
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-slate-400 px-2">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+              </>
             )}
           </div>
-          {events.length > 0 && (
-            <div className="p-4 border-t border-slate-700 text-xs text-slate-400">
-              Showing {events.length} events • Evidence Vault maintains immutable audit trail
-            </div>
-          )}
         </div>
       </div>
     </DashboardLayout>

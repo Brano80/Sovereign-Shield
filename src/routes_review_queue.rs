@@ -48,12 +48,60 @@ pub async fn get_pending(pool: web::Data<PgPool>) -> HttpResponse {
     }
 }
 
+#[get("/api/v1/human_oversight/decided-evidence-ids")]
+pub async fn get_decided_evidence_ids(pool: web::Data<PgPool>) -> HttpResponse {
+    match review_queue::get_decided_evidence_event_ids(pool.get_ref()).await {
+        Ok(ids) => HttpResponse::Ok().json(serde_json::json!({
+            "evidenceEventIds": ids,
+        })),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": e,
+        })),
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionBody {
     pub decision: String,
     pub reason: String,
     pub reviewer_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateReviewBody {
+    pub agent_id: Option<String>,
+    pub action: String,
+    pub module: Option<String>,
+    pub context: serde_json::Value,
+    pub evidence_event_id: String,
+}
+
+#[post("/api/v1/review-queue")]
+pub async fn create_review(
+    pool: web::Data<PgPool>,
+    body: web::Json<CreateReviewBody>,
+) -> HttpResponse {
+    let agent_id = body.agent_id.as_deref().unwrap_or("sovereign-shield");
+    let module = body.module.as_deref().unwrap_or("sovereign-shield");
+    
+    match review_queue::create_review(
+        pool.get_ref(),
+        agent_id,
+        &body.action,
+        module,
+        &body.context,
+        &body.evidence_event_id,
+    ).await {
+        Ok(seal_id) => HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "sealId": seal_id,
+        })),
+        Err(e) => HttpResponse::BadRequest().json(serde_json::json!({
+            "error": e,
+        })),
+    }
 }
 
 #[post("/api/v1/action/{seal_id}/approve")]
@@ -101,6 +149,8 @@ pub async fn reject_action(
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(list_reviews)
        .service(get_pending)
+       .service(get_decided_evidence_ids)
+       .service(create_review)
        .service(approve_action)
        .service(reject_action);
 }

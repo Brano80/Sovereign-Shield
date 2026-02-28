@@ -20,20 +20,35 @@ pub async fn create_review(
     context: &serde_json::Value,
     evidence_event_id: &str,
 ) -> Result<String, String> {
+    // Do not create a duplicate review for the same evidence event (e.g. already rejected or approved).
+    // Return existing seal_id so frontend stops re-adding; REQUIRES ATTENTION only shows PENDING items.
+    let existing: Option<(String,)> = sqlx::query_as(
+        "SELECT seal_id FROM compliance_records WHERE evidence_event_id = $1 LIMIT 1",
+    )
+    .bind(evidence_event_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("Failed to check existing review: {}", e))?;
+
+    if let Some((existing_seal_id,)) = existing {
+        return Ok(existing_seal_id);
+    }
+
     let seal_id = format!("SEAL-{}", Uuid::new_v4().to_string().replace('-', "")[..16].to_uppercase());
     let tx_id = format!("TX-{}", Uuid::new_v4().to_string().replace('-', "")[..12].to_uppercase());
     let payload_hash = sha256_hex(&serde_json::to_string(context).unwrap_or_default());
 
     sqlx::query(
         r#"INSERT INTO compliance_records
-            (agent_id, action_summary, seal_id, status, human_oversight_status, tx_id, payload_hash)
-           VALUES ($1, $2, $3, 'PENDING_REVIEW', 'PENDING', $4, $5)"#
+            (agent_id, action_summary, seal_id, status, human_oversight_status, tx_id, payload_hash, evidence_event_id)
+           VALUES ($1, $2, $3, 'PENDING_REVIEW', 'PENDING', $4, $5, $6)"#
     )
     .bind(agent_id)
     .bind(action)
     .bind(&seal_id)
     .bind(&tx_id)
     .bind(&payload_hash)
+    .bind(evidence_event_id)
     .execute(pool)
     .await
     .map_err(|e| format!("Failed to create compliance record: {}", e))?;
@@ -47,6 +62,20 @@ pub async fn create_review(
     .map_err(|e| format!("Failed to create human oversight entry: {}", e))?;
 
     Ok(seal_id)
+}
+
+/// Evidence event IDs that already have a decision (APPROVED or REJECTED). Used to exclude them from REQUIRES ATTENTION.
+pub async fn get_decided_evidence_event_ids(pool: &PgPool) -> Result<Vec<String>, String> {
+    let rows: Vec<(Option<String>,)> = sqlx::query_as(
+        r#"SELECT DISTINCT cr.evidence_event_id
+           FROM compliance_records cr
+           JOIN human_oversight ho ON ho.seal_id = cr.seal_id
+           WHERE ho.status IN ('APPROVED', 'REJECTED') AND cr.evidence_event_id IS NOT NULL"#,
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(rows.into_iter().filter_map(|(id,)| id).collect())
 }
 
 pub async fn list_reviews(pool: &PgPool, status: Option<&str>) -> Result<Vec<ReviewItemResponse>, String> {
@@ -103,6 +132,19 @@ pub async fn list_reviews(pool: &PgPool, status: Option<&str>) -> Result<Vec<Rev
             _ => &ho.status,
         };
 
+        // Build context with evidence_event_id if available
+        let mut context = serde_json::json!({
+            "seal_id": cr.seal_id,
+            "tx_id": cr.tx_id,
+            "risk_level": cr.risk_level,
+        });
+        
+        // Add evidence_event_id to context if available
+        if let Some(ref evt_id) = cr.evidence_event_id {
+            context["event_id"] = serde_json::json!(evt_id);
+            context["evidence_id"] = serde_json::json!(evt_id);
+        }
+        
         ReviewItemResponse {
             id: cr.seal_id.clone(),
             created: cr.created_at.to_rfc3339(),
@@ -110,13 +152,9 @@ pub async fn list_reviews(pool: &PgPool, status: Option<&str>) -> Result<Vec<Rev
             action: cr.action_summary.clone(),
             module: "sovereign-shield".to_string(),
             suggested_decision: "REVIEW".to_string(),
-            context: serde_json::json!({
-                "seal_id": cr.seal_id,
-                "tx_id": cr.tx_id,
-                "risk_level": cr.risk_level,
-            }),
+            context,
             status: status.to_string(),
-            evidence_id: cr.seal_id.clone(),
+            evidence_id: cr.evidence_event_id.clone().unwrap_or_else(|| cr.seal_id.clone()),
             decided_by: ho.reviewer_id.clone(),
             decision_reason: ho.comments.clone(),
             final_decision,
@@ -189,4 +227,42 @@ pub async fn decide_review(
     }
 
     Ok(())
+}
+
+/// After registering an SCC, auto-approve any pending review items whose transfer
+/// matches the new SCC (destination country). Pairs "Register SCC" with transfer approval.
+pub async fn approve_pending_reviews_for_scc(
+    pool: &PgPool,
+    destination_country_code: &str,
+    _partner_name: Option<&str>,
+) -> Result<usize, String> {
+    let country_upper = destination_country_code.to_uppercase();
+    let rows: Vec<(String,)> = sqlx::query_as(
+        r#"SELECT ho.seal_id FROM human_oversight ho
+           JOIN compliance_records cr ON cr.seal_id = ho.seal_id
+           JOIN evidence_events ee ON ee.event_id = cr.evidence_event_id
+           WHERE ho.status = 'PENDING'
+             AND UPPER(ee.payload->>'destination_country_code') = $1"#,
+    )
+    .bind(&country_upper)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("Failed to find matching pending reviews: {}", e))?;
+
+    let mut approved = 0;
+    for (seal_id,) in rows {
+        if decide_review(
+            pool,
+            &seal_id,
+            "APPROVE",
+            "scc-registration",
+            "SCC registered for this destination",
+        )
+        .await
+        .is_ok()
+        {
+            approved += 1;
+        }
+    }
+    Ok(approved)
 }

@@ -1,9 +1,11 @@
 # Veridion API — Project Reference
 
 **Version:** 1.0  
-**Last updated:** 2026-02-24
+**Last updated:** 2026-02-25
 
 This is the **definitive project reference** for Veridion API. Use it to onboard, scope work, and align with vision and tech stack.
+
+**Recent updates (2026-02-25):** Sovereign Shield dashboard: BLOCKED (24H) KPI includes human rejections (`HUMAN_OVERSIGHT_REJECTED`); PENDING APPROVALS = SCC-required without valid SCC; Requires Attention shows only those and links to Transfer Detail; Transfer Detail page with Reject/Approve (Approve hidden when SCC required) and Add SCC; SCC registration auto-approves pending reviews for that destination; Evidence Vault KPIs and paginated archive; review queue creation with `evidence_event_id` (migration 022). See `PROJECT_REFERENCE.md` for full dashboard and API behaviour.
 
 ---
 
@@ -136,6 +138,16 @@ veridion-api/
 |------------------------------------|--------|
 | `GET /health`                      | Liveness; returns service name and version. |
 | `GET /api/v1/auth/dev-bypass`      | Developer login: returns JWT + user (admin) when not in production. |
+| `GET /api/v1/evidence/events`      | List evidence events (Evidence Vault). |
+| `GET /api/v1/scc-registries`       | List SCC registries. |
+| `POST /api/v1/scc-registries`     | Register SCC; **auto-approves** pending review items for that destination. |
+| `GET /api/v1/review-queue`        | List all review queue items. |
+| `GET /api/v1/human_oversight/pending` | List pending review items. |
+| `POST /api/v1/review-queue`       | Create review item (with `evidence_event_id`). |
+| `POST /api/v1/action/{seal_id}/approve` | Approve review (human oversight). |
+| `POST /api/v1/action/{seal_id}/reject` | Reject review; creates `HUMAN_OVERSIGHT_REJECTED` (counted in BLOCKED 24H). |
+
+For full route list and dashboard behaviour see `PROJECT_REFERENCE.md` and `src/main.rs` startup log.
 
 ---
 

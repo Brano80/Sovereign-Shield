@@ -267,21 +267,21 @@ export default function Home() {
               </div>
               <div className="space-y-4">
                 <div className="flex gap-4">
-                  <div className="w-12 h-12 bg-sky-500 rounded-xl flex items-center justify-center text-white shrink-0 font-bold text-xl">1</div>
+                  <div className="w-12 h-12 bg-slate-600 rounded-xl flex items-center justify-center text-white shrink-0 font-bold text-xl">1</div>
                   <div>
                     <h4 className="font-bold text-slate-900">Block Before the Transfer Happens</h4>
                     <p className="text-slate-500 text-sm">Traditional DLP tools flag violations after data has already crossed the border. Sovereign Shield intercepts the transfer <i>before</i> it executes — ALLOW, BLOCK, or REVIEW in under 100ms.</p>
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center text-white shrink-0 font-bold text-xl">2</div>
+                  <div className="w-12 h-12 bg-slate-600 rounded-xl flex items-center justify-center text-white shrink-0 font-bold text-xl">2</div>
                   <div>
                     <h4 className="font-bold text-slate-900">SCC Registry Checked on Every Transfer</h4>
                     <p className="text-slate-500 text-sm">Standard Contractual Clauses are verified at runtime against the live SCC registry — not just at setup. Expired or missing SCCs trigger automatic REVIEW or BLOCK.</p>
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <div className="w-12 h-12 bg-rose-500 rounded-xl flex items-center justify-center text-white shrink-0 font-bold text-xl">3</div>
+                  <div className="w-12 h-12 bg-slate-600 rounded-xl flex items-center justify-center text-white shrink-0 font-bold text-xl">3</div>
                   <div>
                     <h4 className="font-bold text-slate-900">GDPR Art. 17 Erasure on Demand</h4>
                     <p className="text-slate-500 text-sm">All transferred data is encrypted with AES-256-GCM. On an erasure request, the key is cryptographically shredded — making the data permanently unrecoverable without deleting it.</p>

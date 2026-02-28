@@ -141,6 +141,56 @@ export async function fetchReviewQueuePending(): Promise<ReviewQueueItem[]> {
   return data.reviews || [];
 }
 
+/** Evidence event IDs that already have a decision (rejected/approved). Exclude these from REQUIRES ATTENTION. */
+export async function fetchDecidedEvidenceIds(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/human_oversight/decided-evidence-ids`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.evidenceEventIds) ? data.evidenceEventIds : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchReviewQueueItem(id: string): Promise<ReviewQueueItem | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/review-queue`);
+    if (!res.ok) throw new Error('Failed to fetch review queue');
+    const data = await res.json();
+    const items = data.reviews || [];
+    return items.find((item: ReviewQueueItem) => item.id === id || item.sealId === id || item.evidenceId === id) || null;
+  } catch (error) {
+    console.error('Failed to fetch review item:', error);
+    return null;
+  }
+}
+
+export async function createReviewQueueItem(data: {
+  action: string;
+  context: any;
+  evidenceEventId: string;
+  agentId?: string;
+  module?: string;
+}): Promise<{ sealId: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/review-queue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      agentId: data.agentId || 'sovereign-shield',
+      action: data.action,
+      module: data.module || 'sovereign-shield',
+      context: data.context,
+      evidenceEventId: data.evidenceEventId,
+    }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Failed to create review item' }));
+    throw new Error(error.error || 'Failed to create review item');
+  }
+  return res.json();
+}
+
 export async function approveReviewQueueItem(sealId: string, reason?: string): Promise<void> {
   const res = await fetch(`${API_BASE}/api/v1/action/${sealId}/approve`, {
     method: 'POST',

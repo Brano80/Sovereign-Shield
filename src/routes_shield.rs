@@ -516,6 +516,7 @@ pub async fn register_scc(
             .map(|dt| dt.with_timezone(&chrono::Utc))
     });
 
+    let dest_upper = body.destination_country_code.to_uppercase();
     let row = match sqlx::query_as::<_, SccRegistryRow>(
         r#"INSERT INTO scc_registries 
            (partner_name, destination_country_code, status, expires_at, registered_by, notes)
@@ -523,7 +524,7 @@ pub async fn register_scc(
            RETURNING *"#
     )
     .bind(&body.partner_name)
-    .bind(body.destination_country_code.to_uppercase())
+    .bind(&dest_upper)
     .bind(&expires_at)
     .bind(&body.notes)
     .fetch_one(pool.get_ref())
@@ -536,6 +537,19 @@ pub async fn register_scc(
             }));
         }
     };
+
+    // Auto-approve pending review items whose transfer matches this SCC (destination country)
+    if let Ok(n) = review_queue::approve_pending_reviews_for_scc(
+        pool.get_ref(),
+        &dest_upper,
+        Some(body.partner_name.as_str()),
+    )
+    .await
+    {
+        if n > 0 {
+            log::info!("SCC registration auto-approved {} pending review(s) for {}", n, dest_upper);
+        }
+    }
 
     HttpResponse::Created().json(serde_json::json!({
         "id": row.id.to_string(),

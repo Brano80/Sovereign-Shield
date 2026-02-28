@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '../components/DashboardLayout';
 import { fetchSCCRegistries, createSCCRegistry, SCCRegistry } from '../utils/api';
 import { Plus, ChevronDown, ChevronRight, RefreshCw, Eye, Edit, RotateCcw, Trash2 } from 'lucide-react';
@@ -31,6 +32,7 @@ const PARTNER_SUGGESTIONS = [
 type SCCModule = 'Module1' | 'Module2' | 'Module3' | 'Module4';
 
 export default function SCCRegistryPage() {
+  const searchParams = useSearchParams();
   const [registries, setRegistries] = useState<SCCRegistry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -52,7 +54,24 @@ export default function SCCRegistryPage() {
 
   useEffect(() => {
     loadRegistries();
-  }, []);
+    
+    // Pre-fill from query parameters if present
+    const countryParam = searchParams?.get('country');
+    const partnerParam = searchParams?.get('partner');
+    
+    if (countryParam || partnerParam) {
+      setWizardData(prev => ({
+        ...prev,
+        countryCode: countryParam || prev.countryCode,
+        partnerName: partnerParam || prev.partnerName,
+      }));
+      setPartnerSearch(partnerParam || '');
+      // Open wizard if we have pre-filled data
+      if (countryParam && partnerParam) {
+        setWizardStep(1);
+      }
+    }
+  }, [searchParams]);
 
   async function loadRegistries() {
     try {

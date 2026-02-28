@@ -1,6 +1,6 @@
 # Project Reference — Veridion Nexus / Sovereign Shield
 
-This document describes what is built in this repository and matches the current codebase.
+This document describes what is built in this repository and matches the current codebase. **Last updated:** 2026-02-25.
 
 ---
 
@@ -38,13 +38,13 @@ This document describes what is built in this repository and matches the current
 - **Data**: `fetchEvidenceEvents()` from API; auto-refresh every 5s; manual Refresh button.
 - **Header**: Title "SOVEREIGN SHIELD", subtitle "GDPR Art. 44-49 • International Data Transfers".
 - **Status bar**: Single line with status (PROTECTED → "ENABLED", ATTENTION, AT_RISK), icons (CheckCircle / AlertTriangle), total transfers, Blocked, Allowed, Last scan. Derived from today’s events (blocked/allowed/review counts).
-- **KPI cards (8)**:
-  - Row 1: TRANSFERS (24H), ADEQUATE COUNTRIES (15), HIGH RISK DESTINATIONS (0), BLOCKED TODAY.
-  - Row 2: SCC COVERAGE (0%), EXPIRING SCCs (0), PENDING APPROVALS (review count), ACTIVE AGENTS (0).
+- **KPI cards (8)** — first row shows Merkle roots / integrity, then transfer metrics:
+  - Row 1: TRANSFERS (24H), ADEQUATE COUNTRIES (15), HIGH RISK DESTINATIONS (0), **BLOCKED (24H)** — rolling 24h count of policy blocks (`DATA_TRANSFER_BLOCKED`, `verificationStatus`/`severity` BLOCK) **plus human rejections** (`eventType === 'HUMAN_OVERSIGHT_REJECTED'`). Per REGULUS: human REJECT = sealed block decision (GDPR Art. 30 / EU AI Act Art. 14).
+  - Row 2: SCC COVERAGE (0%), EXPIRING SCCs (0), **PENDING APPROVALS** (SCC-required transfers without a valid SCC in the last 24h), ACTIVE AGENTS (0).
 - **Thin separator**: Single `border-b border-slate-700` line (no tab menu).
 - **Main content**:
-  - **Left (7 cols)**: TRANSFER MAP — `SovereignMap` (wraps `WorldMap`). Height 400px; title "TRANSFER MAP"; legend: Adequate Protection (green), SCC Required (orange), Transfer Blocked (red); caption "Map will show transfer destinations and routes". Country borders: stroke `#64748b`, strokeWidth 0.5. Zoom/pan via `react-simple-maps` `ZoomableGroup`. TopoJSON from `world-atlas@2/countries-110m.json`.
-  - **Right (5 cols)**: REQUIRES ATTENTION — Header "REQUIRES ATTENTION" (AlertTriangle), "View All →". List of events where `eventType === 'DATA_TRANSFER_BLOCKED' | 'DATA_TRANSFER_REVIEW'` or `verificationStatus === 'BLOCK' | 'REVIEW'` (up to 5). Each row: country name, badge "Blocked" (red) or "SCC Required" (yellow) next to name, timestamp, and for SCC Required an orange "Register SCC →" button linking to `/scc-registry`. Empty state: "All SCC-required transfers are covered".
+  - **Left (7 cols)**: TRANSFER MAP — `SovereignMap` (wraps `WorldMap`). Height 400px; title "TRANSFER MAP"; legend: Adequate Protection (green), SCC Required (orange), Transfer Blocked (red); EU/EEA countries (e.g. Germany) shown as adequate, not blocked. Country borders: stroke `#64748b`, strokeWidth 0.5. Zoom/pan via `react-simple-maps` `ZoomableGroup`. TopoJSON from `world-atlas@2/countries-110m.json`.
+  - **Right (5 cols)**: REQUIRES ATTENTION — Only **SCC-required transfers without a valid SCC** (not general REVIEW/blocked). Status badges on the right (Blocked / SCC Required). Items clickable → **Transfer Detail** (`/transfer-detail/[id]`). These transfers are auto-added to the Review Queue. "View All →" links to Review Queue. Empty state when all SCC-required transfers have valid SCC.
   - **Below**: RECENT ACTIVITY — Table of last 10 events: timestamp + "Transfer to {country}" on left, status badge (BLOCK / REVIEW / ALLOW) on the right. Badges: red/yellow/green.
 
 ### 3.2 Transfer Log — `dashboard/app/transfer-log/page.tsx`
@@ -57,7 +57,7 @@ This document describes what is built in this repository and matches the current
 
 - **Route**: `/review-queue`
 - **Data**: `fetchReviewQueuePending()` (GET `/api/v1/human_oversight/pending`). Approve: `approveReviewQueueItem(sealId)`; Reject: `rejectReviewQueueItem(sealId)`.
-- **UI**: Title "Review Queue", subtitle "Pending REVIEW decisions requiring human oversight". Table: Transfer Details, Reason Flagged, Suggested Decision, Actions (Approve / Reject). Auto-refresh every 5s.
+- **UI**: Title "Review Queue", subtitle "Pending REVIEW decisions requiring human oversight". Table: Transfer Details (clickable → Transfer Detail), Reason Flagged, Suggested Decision, Actions (Approve / Reject). Auto-refresh every 5s.
 
 ### 3.4 SCC Registry — `dashboard/app/scc-registry/page.tsx`
 
@@ -85,10 +85,27 @@ This document describes what is built in this repository and matches the current
 - **Data**: `fetchEvidenceEvents()`, `verifyIntegrity()` (POST verify-integrity). Filters: riskLevel (severity), destinationCountry, search (id/eventId/eventType/payloadHash). Listens for `refresh-evidence-vault` custom event.
 - **UI**:
   - **Header**: Title "EVIDENCE VAULT" (no icon), subtitle "GDPR Art. 32 • Audit Archive & Evidence Chain". Buttons: Export for Audit (PDF) — placeholder; Export (JSON) — downloads JSON; Refresh.
+  - **KPI cards (4)**: Merkle roots / integrity first, then event counts (e.g. total, by severity).
   - **Status bar**: "Status: ACTIVE" (Shield icon), Last scan, event count, Chain integrity badge (VALID/TAMPERED), "Verify Chain Integrity" button.
-  - **Filters**: Risk Level dropdown, Destination Country input, Search input; quick chips L1–L4.
-  - **Table**: Event (type + eventId + seq), Risk Level (severity + icon), Destination (country, code, endpoint), Data (data_category, records), Source (sourceSystem, sourceIp), Time (relative + full), Verification (VERIFIED/PENDING/UNVERIFIED), Actions (Eye). Row click and Eye open detail (currently console.log). Highlighted row by `eventId` query: `bg-blue-500/10 border-l-2 border-blue-500`.
+  - **Filters**: Risk Level dropdown, Destination Country input, Search input (no quick filter chips).
+  - **Evidence Events Archive**: Paginated table (10 per page). Columns: Event (type + eventId + seq), Risk Level (severity + icon), Destination (country, code, endpoint), Data (data_category, records), Source (sourceSystem, sourceIp), Time (relative + full), Verification (VERIFIED/PENDING/UNVERIFIED), Actions (Eye). Row click and Eye open detail. Highlighted row by `eventId` query: `bg-blue-500/10 border-l-2 border-blue-500`.
 - **Export**: JSON export; PDF shows "coming soon".
+
+### 3.7 Transfer Detail — `dashboard/app/transfer-detail/[id]/page.tsx`
+
+- **Route**: `/transfer-detail/[id]` (id = review item seal_id or evidence id).
+- **Data**: `fetchReviewQueueItem(id)` (from full review queue), `fetchEvidenceEvents()` to resolve related evidence event by `evidence_event_id`.
+- **UI**:
+  - **Header**: Back, title "Transfer Detail"; actions: **Reject** (red), **Approve** (green, only when transfer is **not** missing SCC — see below), **Add SCC** (orange, when SCC is required).
+  - **Status**: PENDING REVIEW banner with suggested decision and timestamp.
+  - **Regulatory Context**: Full-width section (GDPR Art. 44–49, 22, 46 if SCC missing, EU AI Act Art. 14); note that review decisions are sealed in Evidence Vault.
+  - **Transfer Details**: Partner/Service Provider (or "Not specified" + hint for SCC), Destination Country, Action, Data categories, Records.
+  - **Technical Details**: Destination IP, Source IP, Request path, Protocol, User-Agent (for partner identification and audit).
+  - **Reason Flagged**: Context reason; when SCC required, orange callout and partner identification hint.
+  - **Evidence Chain**: Seal ID, Evidence ID, Transaction ID, Created.
+  - **Evidence Event**: Event type, severity, occurred at, source system (when linked).
+- **Approve vs SCC**: When the transfer **is missing SCC** (SCC-required, no valid SCC), the **Approve** button is hidden. The user must register an SCC via "Add SCC"; **SCC registration auto-approves** all pending review items whose transfer matches that destination (see Backend). When the transfer does **not** require SCC, Approve is shown for manual approval.
+- **Reject**: Calls `rejectReviewQueueItem(sealId)`; redirects to Review Queue. Rejection is sealed as `HUMAN_OVERSIGHT_REJECTED` and counted in **BLOCKED (24H)** on home.
 
 ---
 
@@ -106,10 +123,12 @@ This document describes what is built in this repository and matches the current
 - **Endpoints used**:
   - `GET /api/v1/evidence/events` → `fetchEvidenceEvents()`; normalises `data.events` or `data` to array.
   - `GET /api/v1/scc-registries` → `fetchSCCRegistries()`; maps backend snake_case/camelCase to frontend `SCCRegistry`.
-  - `POST /api/v1/scc-registries` → `createSCCRegistry()`; body `partner_name`, `destination_country_code`, `expires_at`; country name→code mapping for known names.
+  - `POST /api/v1/scc-registries` → `createSCCRegistry()`; body `partner_name`, `destination_country_code`, `expires_at`; country name→code mapping for known names. **Backend auto-approves** pending review items whose transfer destination matches the new SCC (see §6).
+  - `GET /api/v1/review-queue` → used by `fetchReviewQueueItem(id)` to resolve a single item by id/sealId/evidenceId.
+  - `POST /api/v1/review-queue` → create review item; body includes `evidence_event_id` (stored in `compliance_records`, migration `022_add_evidence_event_id.sql`).
   - `GET /api/v1/human_oversight/pending` → `fetchReviewQueuePending()`.
-  - `POST /api/v1/action/{sealId}/approve` → `approveReviewQueueItem()`; body decision, reason, reviewerId.
-  - `POST /api/v1/action/{sealId}/reject` → `rejectReviewQueueItem()`.
+  - `POST /api/v1/action/{sealId}/approve` → `approveReviewQueueItem(sealId, reason?)`; body decision, reason, reviewerId.
+  - `POST /api/v1/action/{sealId}/reject` → `rejectReviewQueueItem(sealId, reason?)`; creates `HUMAN_OVERSIGHT_REJECTED` evidence event, counted in BLOCKED (24H).
   - `POST /api/v1/evidence/verify-integrity` → `verifyIntegrity()`; returns `{ status: 'VALID' | 'TAMPERED' }`.
 
 ---
@@ -117,10 +136,10 @@ This document describes what is built in this repository and matches the current
 ## 6. Backend (Rust) — relevant for dashboard
 
 - Evidence: `GET /api/v1/evidence/events`, `POST /api/v1/evidence/verify-integrity` (see `src/routes_evidence.rs`).
-- SCC: `GET /api/v1/scc-registries`, `POST /api/v1/scc-registries`, `DELETE /api/v1/scc-registries/{id}` (see `src/routes_shield.rs`).
-- Review queue: `GET /api/v1/human_oversight/pending`, `POST /api/v1/action/{seal_id}/approve`, `POST /api/v1/action/{seal_id}/reject` (see `src/routes_review_queue.rs`).
+- SCC: `GET /api/v1/scc-registries`, `POST /api/v1/scc-registries`, `DELETE /api/v1/scc-registries/{id}` (see `src/routes_shield.rs`). **On POST (register SCC)**: after insert, `review_queue::approve_pending_reviews_for_scc()` runs; it finds pending reviews whose evidence event matches the new SCC destination and auto-approves them.
+- Review queue: `GET /api/v1/review-queue`, `GET /api/v1/human_oversight/pending`, `POST /api/v1/review-queue` (create with `evidence_event_id`), `POST /api/v1/action/{seal_id}/approve`, `POST /api/v1/action/{seal_id}/reject` (see `src/routes_review_queue.rs`, `src/review_queue.rs`). Reject creates `HUMAN_OVERSIGHT_REJECTED` evidence event (counted in BLOCKED 24H).
 
-Dashboard does not call: `/api/v1/review-queue`, `/api/v1/shield/*`, `/api/v1/lenses/*`, auth, or other backend routes.
+Dashboard does not call: `/api/v1/shield/*`, `/api/v1/lenses/*`, auth, or other backend routes.
 
 ---
 
@@ -141,12 +160,13 @@ Dashboard does not call: `/api/v1/review-queue`, `/api/v1/shield/*`, `/api/v1/le
 |------|--------|
 | `app/layout.tsx` | Root layout, fonts, metadata |
 | `app/globals.css` | Tailwind, theme variables, scrollbar |
-| `app/page.tsx` | Sovereign Shield home |
+| `app/page.tsx` | Sovereign Shield home (KPIs, map, Requires Attention, Recent Activity) |
 | `app/transfer-log/page.tsx` | Transfer Log |
+| `app/transfer-detail/[id]/page.tsx` | Transfer Detail (Reject / Approve / Add SCC, regulatory context, partner & technical details) |
 | `app/review-queue/page.tsx` | Review Queue |
 | `app/scc-registry/page.tsx` | SCC Registry |
 | `app/adequate-countries/page.tsx` | Adequate / SCC Required / Blocked countries |
-| `app/evidence-vault/page.tsx` | Evidence Vault |
+| `app/evidence-vault/page.tsx` | Evidence Vault (KPIs, paginated archive) |
 | `app/components/DashboardLayout.tsx` | Sidebar + main wrapper |
 | `app/components/Sidebar.tsx` | Nav links |
 | `app/components/SovereignMap.tsx` | Map data from events |

@@ -1,15 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from './components/DashboardLayout';
 import SovereignMap from './components/SovereignMap';
 import { RefreshCw, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
-import { fetchEvidenceEvents, EvidenceEvent } from './utils/api';
+import { fetchEvidenceEvents, fetchSCCRegistries, fetchReviewQueuePending, fetchDecidedEvidenceIds, createReviewQueueItem, EvidenceEvent, SCCRegistry } from './utils/api';
 
 export default function SovereignShieldPage() {
+  const router = useRouter();
   const [events, setEvents] = useState<EvidenceEvent[]>([]);
+  const [sccRegistries, setSccRegistries] = useState<SCCRegistry[]>([]);
+  const [reviewQueueItems, setReviewQueueItems] = useState<string[]>([]); // Track evidence IDs already in queue
+  const [reviewQueueMap, setReviewQueueMap] = useState<Map<string, string>>(new Map()); // Map event ID to review item ID
+  const [decidedEvidenceIds, setDecidedEvidenceIds] = useState<Set<string>>(new Set()); // Rejected/approved – exclude from REQUIRES ATTENTION
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -19,13 +26,133 @@ export default function SovereignShieldPage() {
 
   async function loadData() {
     try {
-      const data = await fetchEvidenceEvents();
-      setEvents(Array.isArray(data) ? data : []);
+      setConnectionError(false);
+      const [eventsData, sccData, reviewData, decidedIds] = await Promise.all([
+        fetchEvidenceEvents(),
+        fetchSCCRegistries(),
+        fetchReviewQueuePending().catch(() => []),
+        fetchDecidedEvidenceIds(),
+      ]);
+      setDecidedEvidenceIds(new Set(decidedIds));
+      const eventsArray = Array.isArray(eventsData) ? eventsData : [];
+      const sccArray = Array.isArray(sccData) ? sccData : [];
+      setEvents(eventsArray);
+      setSccRegistries(sccArray);
+      
+      // Track which evidence IDs are already in the review queue
+      // Backend now stores evidence_event_id and returns it in evidenceId and context
+      const existingEvidenceIds = new Set<string>();
+      const eventToReviewMap = new Map<string, string>(); // Map event ID to review item ID
+      
+      reviewData.forEach((item: any) => {
+        const reviewItemId = item.id || item.sealId;
+        // Check evidenceId (now contains evidence_event_id if available)
+        if (item.evidenceId) {
+          existingEvidenceIds.add(item.evidenceId);
+          eventToReviewMap.set(item.evidenceId, reviewItemId);
+        }
+        // Check context for event_id/evidence_id
+        if (item.context?.event_id) {
+          existingEvidenceIds.add(item.context.event_id);
+          eventToReviewMap.set(item.context.event_id, reviewItemId);
+        }
+        if (item.context?.evidence_id) {
+          existingEvidenceIds.add(item.context.evidence_id);
+          eventToReviewMap.set(item.context.evidence_id, reviewItemId);
+        }
+        // Fallback to seal_id if no evidence_event_id
+        if (item.id && !item.evidenceId) {
+          existingEvidenceIds.add(item.id);
+        }
+      });
+      setReviewQueueItems(Array.from(existingEvidenceIds));
+      setReviewQueueMap(eventToReviewMap);
+
+      // Automatically add events that need attention to review queue
+      await ensureEventsInReviewQueue(eventsArray, sccArray, existingEvidenceIds);
     } catch (error) {
       console.error('Failed to load data:', error);
       setEvents([]);
+      setSccRegistries([]);
+      setConnectionError(true);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function ensureEventsInReviewQueue(
+    eventsArray: EvidenceEvent[],
+    sccArray: SCCRegistry[],
+    existingEvidenceIds: Set<string>
+  ) {
+    // Filter events that need attention (SCC required without valid SCC)
+    const needsAttention = eventsArray.filter(e => {
+      // Only REVIEW events, not BLOCKED
+      const isReview = e.eventType === 'DATA_TRANSFER_REVIEW' || e.verificationStatus === 'REVIEW';
+      if (!isReview) return false;
+
+      // Get destination country code
+      const countryCode = e.payload?.destination_country_code?.toUpperCase();
+      if (!countryCode) return true; // If no country code, needs attention
+
+      // Check if there's a valid (non-expired) SCC for this country
+      const hasValidSCC = sccArray.some(scc => {
+        if (scc.status !== 'Valid') return false;
+        if (scc.destinationCountry.toUpperCase() !== countryCode) return false;
+        // Check if expired
+        if (scc.expiryDate) {
+          const expiryDate = new Date(scc.expiryDate);
+          return expiryDate > new Date();
+        }
+        return true;
+      });
+
+      return !hasValidSCC;
+    });
+
+    console.log(`Found ${needsAttention.length} events that need attention`);
+    console.log(`Existing evidence IDs in queue:`, Array.from(existingEvidenceIds));
+
+    // Add each event to review queue if not already there
+    for (const event of needsAttention) {
+      const evidenceId = event.id || event.eventId;
+      const eventId = event.eventId || event.id;
+      if (!evidenceId) {
+        continue; // Skip if no ID
+      }
+      
+      // Check if already in queue by event_id in context or by evidenceId
+      if (existingEvidenceIds.has(evidenceId) || existingEvidenceIds.has(eventId)) {
+        continue; // Already in queue
+      }
+
+      try {
+        const countryCode = event.payload?.destination_country_code || 'UNKNOWN';
+        const countryName = event.payload?.destination_country || 'Unknown';
+        const action = `transfer_data_to_${countryCode.toLowerCase()}`;
+        
+        const result = await createReviewQueueItem({
+          action,
+          context: {
+            destination: countryName,
+            destination_country_code: countryCode,
+            data_categories: event.payload?.data_category || 'Unknown',
+            reason: `SCC required for transfer to ${countryName} but no valid SCC registered`,
+            event_id: eventId,
+            evidence_id: evidenceId,
+            event_type: event.eventType,
+          },
+          evidenceEventId: evidenceId,
+        });
+        
+        // Add to existing set to avoid duplicates (both eventId and evidenceId)
+        existingEvidenceIds.add(evidenceId);
+        if (eventId) existingEvidenceIds.add(eventId);
+        console.log(`Added event ${evidenceId} to review queue with seal ${result.sealId}`);
+      } catch (error) {
+        console.error(`Failed to add event ${evidenceId} to review queue:`, error);
+        // Continue with other events even if one fails
+      }
     }
   }
 
@@ -36,21 +163,50 @@ export default function SovereignShieldPage() {
   }
 
   // Calculate stats
-  const today = new Date().toISOString().split('T')[0];
-  const todayEvents = events.filter((e) => e.occurredAt.startsWith(today));
-  const blocked = todayEvents.filter((e) => 
+  const now = new Date();
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  
+  // Filter events from last 24 hours
+  const last24HoursEvents = events.filter((e) => {
+    const eventDate = new Date(e.occurredAt);
+    return eventDate >= twentyFourHoursAgo;
+  });
+  
+  // BLOCKED (24H): policy blocks + human rejections (REGULUS: human REJECT = sealed block decision, GDPR Art. 30 / EU AI Act Art. 14)
+  const blocked = last24HoursEvents.filter((e) => 
     e.verificationStatus === 'BLOCK' || e.severity === 'BLOCK' || 
-    e.eventType === 'DATA_TRANSFER_BLOCKED'
+    e.eventType === 'DATA_TRANSFER_BLOCKED' || e.eventType === 'HUMAN_OVERSIGHT_REJECTED'
   ).length;
-  const allowed = todayEvents.filter((e) => 
+  const allowed = last24HoursEvents.filter((e) => 
     e.verificationStatus === 'ALLOW' || e.severity === 'ALLOW' ||
     e.eventType === 'DATA_TRANSFER'
   ).length;
-  const review = todayEvents.filter((e) => 
-    e.verificationStatus === 'REVIEW' || e.severity === 'REVIEW' ||
-    e.eventType === 'DATA_TRANSFER_REVIEW'
-  ).length;
-  const total = todayEvents.length;
+  const total = last24HoursEvents.length;
+
+  // Calculate PENDING APPROVALS: SCC-required transfers without valid SCC
+  const pendingApprovals = events.filter(e => {
+    // Only REVIEW events (SCC-required), not BLOCKED
+    const isReview = e.eventType === 'DATA_TRANSFER_REVIEW' || e.verificationStatus === 'REVIEW';
+    if (!isReview) return false;
+
+    // Get destination country code
+    const countryCode = e.payload?.destination_country_code?.toUpperCase();
+    if (!countryCode) return true; // If no country code, needs approval
+
+    // Check if there's a valid (non-expired) SCC for this country
+    const hasValidSCC = sccRegistries.some(scc => {
+      if (scc.status !== 'Valid') return false;
+      if (scc.destinationCountry.toUpperCase() !== countryCode) return false;
+      // Check if expired
+      if (scc.expiryDate) {
+        const expiryDate = new Date(scc.expiryDate);
+        return expiryDate > new Date();
+      }
+      return true;
+    });
+
+    return !hasValidSCC;
+  }).length;
 
   const status = blocked > 10 ? 'AT_RISK' : blocked > 0 ? 'ATTENTION' : 'PROTECTED';
 
@@ -79,7 +235,9 @@ export default function SovereignShieldPage() {
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {status === 'PROTECTED' ? (
+              {connectionError ? (
+                <AlertTriangle className="w-5 h-5 text-orange-400" />
+              ) : status === 'PROTECTED' ? (
                 <CheckCircle className="w-5 h-5 text-green-400" />
               ) : status === 'ATTENTION' ? (
                 <AlertTriangle className="w-5 h-5 text-yellow-400" />
@@ -87,13 +245,17 @@ export default function SovereignShieldPage() {
                 <AlertTriangle className="w-5 h-5 text-red-400" />
               )}
               <span className="text-sm font-medium text-white">
-                Status: {status === 'PROTECTED' ? 'ENABLED' : status}
+                Status:{' '}
+                {connectionError ? (
+                  <span className="text-orange-400">DISABLED</span>
+                ) : status === 'PROTECTED' ? (
+                  <span className="text-green-400">ENABLED</span>
+                ) : (
+                  status
+                )}
               </span>
             </div>
             <div className="flex items-center gap-6 text-sm text-slate-300">
-              <span>Total transfers: {total.toLocaleString()}</span>
-              <span>Blocked: {blocked}</span>
-              <span>Allowed: {allowed}</span>
               <span>Last scan: {new Date().toLocaleTimeString()}</span>
             </div>
           </div>
@@ -130,11 +292,11 @@ export default function SovereignShieldPage() {
           </div>
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-sm text-slate-400 font-medium">BLOCKED TODAY</div>
+              <div className="text-sm text-slate-400 font-medium">BLOCKED (24H)</div>
               <Shield className="w-4 h-4 text-red-500" />
             </div>
             <div className="text-2xl font-bold text-red-400">{blocked}</div>
-            <div className="text-xs text-slate-500 mt-1">Transfers prevented</div>
+            <div className="text-xs text-slate-500 mt-1">Transfers prevented in last 24 hours</div>
           </div>
         </div>
 
@@ -161,8 +323,8 @@ export default function SovereignShieldPage() {
               <div className="text-sm text-slate-400 font-medium">PENDING APPROVALS</div>
               <AlertTriangle className="w-4 h-4 text-yellow-500" />
             </div>
-            <div className="text-2xl font-bold text-yellow-400">{review}</div>
-            <div className="text-xs text-slate-500 mt-1">Awaiting review</div>
+            <div className="text-2xl font-bold text-yellow-400">{pendingApprovals}</div>
+            <div className="text-xs text-slate-500 mt-1">SCC-required transfers awaiting SCC registration</div>
           </div>
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
@@ -195,12 +357,43 @@ export default function SovereignShieldPage() {
                   <button className="text-xs text-blue-400 hover:text-blue-300">View All →</button>
                 </div>
                 <div className="p-4 pb-5">
-                  {events.filter(e => 
-                      e.eventType === 'DATA_TRANSFER_BLOCKED' || 
-                      e.eventType === 'DATA_TRANSFER_REVIEW' ||
-                      e.verificationStatus === 'BLOCK' ||
-                      e.verificationStatus === 'REVIEW'
-                    ).length === 0 ? (
+                  {(() => {
+                    // Filter: Only SCC-required events (REVIEW) that don't have a valid SCC,
+                    // still have a PENDING review item, and are NOT already decided (rejected/approved).
+                    const requiresAttention = events.filter(e => {
+                      const id1 = e.id;
+                      const id2 = e.eventId;
+                      // Exclude events that already have a decision (rejected or approved)
+                      if (id1 && decidedEvidenceIds.has(id1)) return false;
+                      if (id2 && decidedEvidenceIds.has(id2)) return false;
+                      // Only show if still in pending review queue
+                      const eventId = id1 || id2;
+                      if (!eventId || !reviewQueueMap.has(eventId)) return false;
+
+                      // Only show REVIEW events, not BLOCKED
+                      const isReview = e.eventType === 'DATA_TRANSFER_REVIEW' || e.verificationStatus === 'REVIEW';
+                      if (!isReview) return false;
+
+                      // Get destination country code
+                      const countryCode = e.payload?.destination_country_code?.toUpperCase();
+                      if (!countryCode) return true; // If no country code, show it
+
+                      // Check if there's a valid (non-expired) SCC for this country
+                      const hasValidSCC = sccRegistries.some(scc => {
+                        if (scc.status !== 'Valid') return false;
+                        if (scc.destinationCountry.toUpperCase() !== countryCode) return false;
+                        // Check if expired
+                        if (scc.expiryDate) {
+                          const expiryDate = new Date(scc.expiryDate);
+                          return expiryDate > new Date();
+                        }
+                        return true;
+                      });
+
+                      return !hasValidSCC;
+                    });
+
+                    return requiresAttention.length === 0 ? (
                       <div className="text-center py-8">
                         <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500 opacity-50" />
                         <p className="text-sm text-slate-300 font-medium mb-1">All SCC-required transfers are covered</p>
@@ -208,54 +401,39 @@ export default function SovereignShieldPage() {
                       </div>
                     ) : (
                       <div className="space-y-2 pb-1">
-                      {events
-                        .filter(e => 
-                          e.eventType === 'DATA_TRANSFER_BLOCKED' || 
-                          e.eventType === 'DATA_TRANSFER_REVIEW' ||
-                          e.verificationStatus === 'BLOCK' ||
-                          e.verificationStatus === 'REVIEW'
-                        )
-                        .slice(0, 5)
-                        .map((event) => {
-                          const isBlocked = event.eventType === 'DATA_TRANSFER_BLOCKED' || event.verificationStatus === 'BLOCK';
+                        {requiresAttention.slice(0, 5).map((event) => {
                           const country = event.payload?.destination_country || 'Unknown';
+                          const eventId = event.id || event.eventId;
+                          // Find the review queue item ID for this event
+                          const reviewItemId = reviewQueueMap.get(eventId) || eventId;
+                          
+                          const handleClick = () => {
+                            router.push(`/transfer-detail/${reviewItemId}`);
+                          };
+                          
                           return (
                             <div
                               key={event.id}
-                              className="p-3 bg-slate-700/50 rounded-lg border border-slate-600"
+                              onClick={handleClick}
+                              className="p-3 bg-slate-700/50 rounded-lg border border-slate-600 cursor-pointer hover:bg-slate-700 hover:border-slate-500 transition-colors"
                             >
                               <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <div className="text-sm text-white font-medium">{country}</div>
-                                    {isBlocked ? (
-                                      <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded text-xs font-medium">
-                                        Blocked
-                                      </span>
-                                    ) : (
-                                      <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded text-xs font-medium">
-                                        SCC Required
-                                      </span>
-                                    )}
-                                  </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm text-white font-medium">{country}</div>
                                   <div className="text-xs text-slate-400 mt-1">
                                     {new Date(event.occurredAt).toLocaleString()}
                                   </div>
                                 </div>
-                                {!isBlocked && (
-                                  <button
-                                    onClick={() => window.location.href = '/scc-registry'}
-                                    className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded flex-shrink-0"
-                                  >
-                                    Register SCC →
-                                  </button>
-                                )}
+                                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded text-xs font-medium flex-shrink-0">
+                                  SCC Required
+                                </span>
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                    )}
+                    );
+                  })()}
                 </div>
               </div>
             </div>

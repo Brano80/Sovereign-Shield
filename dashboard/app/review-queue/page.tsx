@@ -1,18 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '../components/DashboardLayout';
 import {
   fetchReviewQueuePending,
-  approveReviewQueueItem,
-  rejectReviewQueueItem,
   ReviewQueueItem,
 } from '../utils/api';
+import { Eye } from 'lucide-react';
 
 export default function ReviewQueuePage() {
+  const router = useRouter();
   const [items, setItems] = useState<ReviewQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
     loadItems();
@@ -23,7 +23,12 @@ export default function ReviewQueuePage() {
   async function loadItems() {
     try {
       const data = await fetchReviewQueuePending();
-      setItems(data);
+      // Only show PENDING items: rejected and SCC-resolved (approved) items are excluded by API;
+      // this filter is a safeguard so they never appear in the list.
+      const pendingOnly = (Array.isArray(data) ? data : []).filter(
+        (item: ReviewQueueItem) => (item.status || '').toUpperCase() === 'PENDING'
+      );
+      setItems(pendingOnly);
     } catch (error) {
       console.error('Failed to load review queue:', error);
     } finally {
@@ -31,32 +36,9 @@ export default function ReviewQueuePage() {
     }
   }
 
-  async function handleApprove(item: ReviewQueueItem) {
-    const sealId = item.sealId || item.evidenceId || item.id;
-    setProcessing(item.id);
-    try {
-      await approveReviewQueueItem(sealId);
-      loadItems();
-    } catch (error) {
-      console.error('Failed to approve:', error);
-      alert('Failed to approve review item');
-    } finally {
-      setProcessing(null);
-    }
-  }
-
-  async function handleReject(item: ReviewQueueItem) {
-    const sealId = item.sealId || item.evidenceId || item.id;
-    setProcessing(item.id);
-    try {
-      await rejectReviewQueueItem(sealId);
-      loadItems();
-    } catch (error) {
-      console.error('Failed to reject:', error);
-      alert('Failed to reject review item');
-    } finally {
-      setProcessing(null);
-    }
+  function handleView(item: ReviewQueueItem) {
+    const itemId = item.id || item.sealId || item.evidenceId;
+    router.push(`/transfer-detail/${itemId}`);
   }
 
   return (
@@ -125,22 +107,13 @@ export default function ReviewQueuePage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleApprove(item)}
-                            disabled={processing === item.id}
-                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-                          >
-                            {processing === item.id ? 'Processing...' : 'Approve'}
-                          </button>
-                          <button
-                            onClick={() => handleReject(item)}
-                            disabled={processing === item.id}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-                          >
-                            {processing === item.id ? 'Processing...' : 'Reject'}
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => handleView(item)}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                        >
+                          <Eye className="w-4 h-4" />
+                          View
+                        </button>
                       </td>
                     </tr>
                   ))

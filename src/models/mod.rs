@@ -119,6 +119,7 @@ pub struct ComplianceRecordRow {
     pub user_id: Option<String>,
     pub tx_id: String,
     pub payload_hash: String,
+    pub evidence_event_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
