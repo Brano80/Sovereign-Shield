@@ -246,7 +246,7 @@ export default function Home() {
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div className="text-slate-500 text-sm font-bold uppercase tracking-widest mb-2">Max Fine (GDPR)</div>
                 <div className="text-4xl font-extrabold text-slate-900 mb-2">4%</div>
-                <div className="text-slate-400 text-sm font-medium">Of global annual turnover for serious infringements including unlawful transfers (Art. 83(5) GDPR).</div>
+                <div className="text-slate-400 text-sm font-medium">Of global annual turnover for serious GDPR infringements, including unlawful international transfers (Art. 83(5) GDPR).</div>
               </div>
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div className="text-slate-500 text-sm font-bold uppercase tracking-widest mb-2">Non-Adequate Countries</div>
@@ -283,7 +283,7 @@ export default function Home() {
                   <div className="w-12 h-12 bg-rose-500 rounded-xl flex items-center justify-center text-white shrink-0 font-bold text-xl">3</div>
                   <div>
                     <h4 className="font-bold text-slate-900">Human Oversight for Every REVIEW Decision</h4>
-                    <p className="text-slate-500 text-sm">When Sovereign Shield cannot determine a safe legal basis, the transfer is flagged for human review per EU AI Act Art. 14. Every decision is sealed in the Evidence Vault.</p>
+                    <p className="text-slate-500 text-sm">When Sovereign Shield cannot determine a safe legal basis, the transfer is flagged for human review. Every decision is sealed in the Evidence Vault per GDPR Art. 30 record-keeping requirements.</p>
                   </div>
                 </div>
               </div>
@@ -383,15 +383,6 @@ export default function Home() {
                 <div className="bg-slate-800 border border-white/10 p-5 rounded-2xl flex-1 min-h-0 flex flex-col overflow-hidden">
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex-shrink-0">SCC Registry Status</h4>
                   <div className="space-y-4 flex-1 min-h-0">
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <div className="text-xs font-medium text-slate-300">Art. 33(1) Breach Notification (72h)</div>
-                        <div className="text-xs font-mono text-sky-400">71:24:59</div>
-                      </div>
-                      <div className="w-full bg-slate-700 h-1 rounded-full overflow-hidden">
-                        <div className="bg-sky-400 h-full w-[98%]"></div>
-                      </div>
-                    </div>
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <div className="text-xs font-medium text-slate-300">SCC — OpenAI US</div>
@@ -506,7 +497,7 @@ export default function Home() {
                   sub: "per month",
                   cta: "Get Started",
                   badge: "Most Popular",
-                  features: ["500,000 evaluations/month", "Full L1–L3 Evidence Vault", "Human Review Queue (EU AI Act Art. 14)", "TEE Provenance Sealing", "Priority support"],
+                  features: ["500,000 evaluations/month", "Full L1–L3 Evidence Vault", "Human Review Queue", "TEE Provenance Sealing", "Priority support"],
                 },
                 {
                   name: "Enterprise",
@@ -553,8 +544,20 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-        <footer className="py-12 bg-slate-900 text-slate-500 text-center">
-          <p className="text-xs tracking-widest font-mono uppercase">© 2026 Veridion Nexus — Sovereign Shield. All Decisions Sealed.</p>
+        <footer className="py-12 bg-slate-900 text-slate-500">
+          <div className="max-w-6xl mx-auto px-6">
+            <div className="text-center mb-4">
+              <p className="text-xs tracking-widest font-mono uppercase">© 2026 Veridion Nexus — Sovereign Shield. All Decisions Sealed.</p>
+            </div>
+            <div className="text-center text-xs text-slate-600 mt-4 space-y-1">
+              <p className="italic">This website provides general information about GDPR compliance tools. It does not constitute legal advice. Consult qualified legal counsel for specific compliance requirements.</p>
+              <div className="flex justify-center gap-4 mt-3">
+                <a href="#" className="hover:text-slate-400 transition-colors">Privacy Policy</a>
+                <span>•</span>
+                <a href="#" className="hover:text-slate-400 transition-colors">Terms of Service</a>
+              </div>
+            </div>
+          </div>
         </footer>
 
       </div>
