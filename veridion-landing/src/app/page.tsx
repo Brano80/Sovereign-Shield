@@ -489,7 +489,7 @@ export default function Home() {
                 {
                   name: "Developer",
                   price: "€0",
-                  sub: "free forever",
+                  sub: "free",
                   cta: "Get API Key",
                   features: ["3,000 evaluations/month", "Sovereign Shield (ALLOW/BLOCK)", "L1 Evidence Vault", "Community support"],
                 },

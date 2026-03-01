@@ -60,6 +60,32 @@ export async function fetchEvidenceEvents(): Promise<EvidenceEvent[]> {
   return Array.isArray(data.events) ? data.events : Array.isArray(data) ? data : [];
 }
 
+/** Fetch evidence events with pagination for Transfer Log */
+export async function fetchEvidenceEventsPaginated(
+  page: number = 1,
+  limit: number = 50,
+  eventType?: string
+): Promise<{
+  events: EvidenceEvent[];
+  total: number;
+}> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('limit', String(limit));
+  searchParams.set('offset', String((page - 1) * limit));
+  if (eventType) {
+    searchParams.set('event_type', eventType);
+  }
+  const url = `${API_BASE}/api/v1/evidence/events?${searchParams.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch evidence events');
+  const data = await res.json();
+  const events = Array.isArray(data.events) ? data.events : Array.isArray(data) ? data : [];
+  return {
+    events,
+    total: data.totalCount ?? events.length,
+  };
+}
+
 /** Fetch evidence events with metadata (merkleRoots, totalCount) for Evidence Vault */
 export async function fetchEvidenceEventsWithMeta(params?: {
   eventType?: string;

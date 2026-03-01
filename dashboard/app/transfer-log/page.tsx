@@ -3,35 +3,54 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '../components/DashboardLayout';
-import { fetchEvidenceEvents, EvidenceEvent } from '../utils/api';
-import { FileDown } from 'lucide-react';
+import { fetchEvidenceEventsPaginated, EvidenceEvent } from '../utils/api';
+import { FileDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getCountryCodeFromName, getLegalBasis } from '../config/countries';
+
+const ITEMS_PER_PAGE = 50;
+
+// TODO: When total > 100,000 events, group by day/week in UI
 
 export default function TransferLogPage() {
   const router = useRouter();
   const [events, setEvents] = useState<EvidenceEvent[]>([]);
+  const [totalEvents, setTotalEvents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'ALL' | 'ALLOWED' | 'BLOCKED' | 'PENDING'>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     loadEvents();
     const interval = setInterval(loadEvents, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentPage, filter]);
 
   async function loadEvents() {
     try {
-      const data = await fetchEvidenceEvents();
+      setLoading(true);
+      // Map filter to event_type for server-side filtering
+      let eventType: string | undefined;
+      if (filter === 'BLOCKED') {
+        eventType = 'DATA_TRANSFER_BLOCKED';
+      } else if (filter === 'PENDING') {
+        eventType = 'DATA_TRANSFER_REVIEW';
+      } else if (filter === 'ALLOWED') {
+        eventType = 'DATA_TRANSFER';
+      }
+      
+      const { events: data, total } = await fetchEvidenceEventsPaginated(currentPage, ITEMS_PER_PAGE, eventType);
       setEvents(Array.isArray(data) ? data : []);
+      setTotalEvents(total);
     } catch (error) {
       console.error('Failed to load events:', error);
       setEvents([]);
+      setTotalEvents(0);
     } finally {
       setLoading(false);
     }
   }
 
-  // Fix 1: Filter out human-oversight events; only show transfer/sovereign events or events with payload.decision
+  // Filter out human-oversight events; only show transfer/sovereign events or events with payload.decision
   const transferEvents = events.filter((e) => {
     const et = (e.eventType || '').toLowerCase();
     const isHumanOversight = et.includes('human-oversight') || et.includes('human_oversight') || et === 'human_oversight';
@@ -40,20 +59,70 @@ export default function TransferLogPage() {
     return false;
   });
 
-  const filteredEvents = transferEvents.filter((event) => {
-    if (filter === 'ALL') return true;
-    const eventType = event.eventType;
-    if (filter === 'BLOCKED') {
-      return eventType === 'DATA_TRANSFER_BLOCKED' || event.verificationStatus === 'BLOCK';
-    }
-    if (filter === 'PENDING') {
-      return eventType === 'DATA_TRANSFER_REVIEW' || event.verificationStatus === 'REVIEW';
-    }
-    if (filter === 'ALLOWED') {
-      return eventType === 'DATA_TRANSFER' || event.verificationStatus === 'ALLOW';
-    }
-    return true;
-  });
+  // Client-side filtering for ALL filter (server-side filtering handles BLOCKED/PENDING/ALLOWED)
+  const filteredEvents = filter === 'ALL' 
+    ? transferEvents 
+    : transferEvents.filter((event) => {
+        const eventType = (event.eventType || '').toUpperCase();
+        const verificationStatus = (event.verificationStatus || '').toUpperCase();
+        const payloadDecision = (event.payload?.decision || '').toUpperCase();
+        
+        if (filter === 'BLOCKED') {
+          return (
+            eventType === 'DATA_TRANSFER_BLOCKED' ||
+            eventType.includes('BLOCK') ||
+            verificationStatus === 'BLOCK' ||
+            payloadDecision === 'BLOCK' ||
+            eventType.includes('HUMAN_OVERSIGHT_REJECTED')
+          );
+        }
+        if (filter === 'PENDING') {
+          return (
+            eventType === 'DATA_TRANSFER_REVIEW' ||
+            eventType.includes('REVIEW') ||
+            verificationStatus === 'REVIEW' ||
+            verificationStatus === 'PENDING' ||
+            payloadDecision === 'REVIEW'
+          );
+        }
+        if (filter === 'ALLOWED') {
+          const isBlocked = (
+            eventType === 'DATA_TRANSFER_BLOCKED' ||
+            eventType.includes('BLOCK') ||
+            verificationStatus === 'BLOCK' ||
+            payloadDecision === 'BLOCK' ||
+            eventType.includes('HUMAN_OVERSIGHT_REJECTED')
+          );
+          const isPending = (
+            eventType === 'DATA_TRANSFER_REVIEW' ||
+            eventType.includes('REVIEW') ||
+            verificationStatus === 'REVIEW' ||
+            verificationStatus === 'PENDING' ||
+            payloadDecision === 'REVIEW'
+          );
+          if (isBlocked || isPending) return false;
+          
+          return (
+            eventType === 'DATA_TRANSFER' ||
+            verificationStatus === 'ALLOW' ||
+            verificationStatus === 'VERIFIED' ||
+            payloadDecision === 'ALLOW' ||
+            eventType.includes('HUMAN_OVERSIGHT_APPROVED') ||
+            (eventType.includes('TRANSFER') && !eventType.includes('BLOCK') && !eventType.includes('REVIEW'))
+          );
+        }
+        return true;
+      });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(totalEvents / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + filteredEvents.length, totalEvents);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   function handleRowClick(event: EvidenceEvent) {
     const eventId = event.eventId || event.id;
@@ -72,9 +141,30 @@ export default function TransferLogPage() {
     return s.includes(',') || s.includes('"') ? `"${s}"` : s;
   }
 
-  function exportCsv() {
-    const headers = ['Timestamp', 'Destination', 'Data Category', ...(showPurposeColumn ? ['Purpose'] : []), 'Legal Basis', 'Status', 'Event ID'];
-    const rows = filteredEvents.map((e) => {
+  async function exportCsv() {
+    // For CSV export, fetch all events matching the current filter
+    try {
+      let eventType: string | undefined;
+      if (filter === 'BLOCKED') {
+        eventType = 'DATA_TRANSFER_BLOCKED';
+      } else if (filter === 'PENDING') {
+        eventType = 'DATA_TRANSFER_REVIEW';
+      } else if (filter === 'ALLOWED') {
+        eventType = 'DATA_TRANSFER';
+      }
+      
+      // Fetch first page to get total, then fetch all if needed
+      const { events: allEvents, total } = await fetchEvidenceEventsPaginated(1, 10000, eventType);
+      const exportEvents = filter === 'ALL' 
+        ? allEvents.filter((e) => {
+            const et = (e.eventType || '').toLowerCase();
+            return !et.includes('human-oversight') && !et.includes('human_oversight') && 
+                   (et.includes('transfer') || et.includes('sovereign') || e.payload?.decision);
+          })
+        : allEvents;
+      
+      const headers = ['Timestamp', 'Destination', 'Data Category', ...(showPurposeColumn ? ['Purpose'] : []), 'Legal Basis', 'Status', 'Event ID'];
+      const rows = exportEvents.map((e) => {
       const countryName =
         e.payload?.destination_country ||
         e.payload?.destinationCountry ||
@@ -125,7 +215,7 @@ export default function TransferLogPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-white mb-2">Transfer Log</h1>
-          <p className="text-slate-400 text-sm">Complete history of all data transfer decisions</p>
+          <p className="text-slate-400 text-sm">Complete history of all data transfer decisions — records retained per GDPR Art. 30</p>
         </div>
 
         {/* Filters + Export */}
@@ -302,6 +392,71 @@ export default function TransferLogPage() {
             </table>
           </div>
         </div>
+
+        {/* Pagination */}
+        {totalEvents > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-between gap-4">
+            <div className="text-sm text-slate-400">
+              Showing {startIndex + 1}–{endIndex} of {totalEvents} transfers
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  currentPage === 1
+                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
+                    // Show first page, last page, current page, and pages around current
+                    if (totalPages <= 7) return true;
+                    if (page === 1 || page === totalPages) return true;
+                    if (Math.abs(page - currentPage) <= 1) return true;
+                    return false;
+                  })
+                  .map((page, idx, arr) => {
+                    // Add ellipsis if there's a gap
+                    const prevPage = arr[idx - 1];
+                    const showEllipsisBefore = prevPage && page - prevPage > 1;
+                    return (
+                      <div key={page} className="flex items-center gap-1">
+                        {showEllipsisBefore && (
+                          <span className="px-2 text-slate-500">...</span>
+                        )}
+                        <button
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                            currentPage === page
+                              ? 'bg-sky-500 text-white'
+                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  currentPage === totalPages
+                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

@@ -11,6 +11,7 @@ pub struct ListEventsQuery {
     pub search: Option<String>,
     pub destination_country: Option<String>,
     pub limit: Option<i64>,
+    pub offset: Option<i64>,
 }
 
 #[get("/api/v1/evidence/events")]
@@ -18,7 +19,8 @@ pub async fn list_events(
     pool: web::Data<PgPool>,
     query: web::Query<ListEventsQuery>,
 ) -> HttpResponse {
-    let limit = query.limit.unwrap_or(50).min(100);
+    let limit = query.limit.unwrap_or(50).min(10000);
+    let offset = query.offset.unwrap_or(0).max(0);
 
     match evidence::list_events(
         pool.get_ref(),
@@ -27,6 +29,7 @@ pub async fn list_events(
         query.search.as_deref(),
         query.destination_country.as_deref(),
         limit,
+        offset,
     ).await {
         Ok((events, total)) => {
             let merkle_roots = evidence::count_sealed_chain_roots(pool.get_ref()).await.unwrap_or(0);

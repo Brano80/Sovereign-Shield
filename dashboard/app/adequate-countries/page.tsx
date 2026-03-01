@@ -79,7 +79,7 @@ export default function AdequateCountriesPage() {
               Transfers allowed with Standard Contractual Clauses
             </p>
             <div className="grid grid-cols-1 gap-3 flex-1">
-              {sccRequiredCountries.map((country) => (
+              {SCC_REQUIRED_COUNTRY_LIST.map((country) => (
                 <CountryCard
                   key={country.code}
                   country={country}

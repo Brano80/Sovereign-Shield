@@ -153,6 +153,7 @@ pub async fn list_events(
     search: Option<&str>,
     destination_country: Option<&str>,
     limit: i64,
+    offset: i64,
 ) -> Result<(Vec<EvidenceEventResponse>, i64), String> {
     let mut conditions = vec!["1=1".to_string()];
     let mut bind_idx = 0u32;
@@ -213,7 +214,7 @@ pub async fn list_events(
         count_query = count_query.bind(dc.to_string());
     }
 
-    query = query.bind(limit);
+    query = query.bind(offset).bind(limit);
 
     let rows = query.fetch_all(pool).await.map_err(|e| e.to_string())?;
     let total: i64 = count_query.fetch_one(pool).await.unwrap_or(0);
