@@ -272,7 +272,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let mut cors = Cors::default()
-            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
             .allowed_headers(vec![actix_web::http::header::AUTHORIZATION, actix_web::http::header::CONTENT_TYPE]);
         for origin in &origins {
             cors = cors.allowed_origin(origin.as_str());

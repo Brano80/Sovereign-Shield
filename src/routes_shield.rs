@@ -1,11 +1,11 @@
-use actix_web::{web, HttpResponse, get, post, delete};
+use actix_web::{web, HttpResponse, get, post, patch, delete};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::evidence::{self, CreateEventParams};
-use crate::shield::{Decision, TransferContext, evaluate_transfer, evaluate_transfer_with_db, all_country_classifications, country_name};
+use crate::shield::{Decision, TransferContext, evaluate_transfer_with_db, all_country_classifications, country_name};
 use crate::review_queue;
 
 #[derive(Deserialize)]
@@ -182,7 +182,13 @@ pub async fn ingest_logs(
             request_path: entry.request_path.clone(),
         };
 
-        let decision = evaluate_transfer(&ctx);
+        let decision = match evaluate_transfer_with_db(pool.get_ref(), &ctx).await {
+            Ok(d) => d,
+            Err(e) => {
+                log::error!("Ingest evaluation failed for entry: {}", e);
+                continue;
+            }
+        };
         let dest_code = ctx.destination_country_code.clone().unwrap_or_default();
         let dest_name = if dest_code.is_empty() {
             ctx.destination_country.clone().unwrap_or("Unknown".into())
@@ -488,6 +494,10 @@ pub struct SccRegistryRequest {
     pub destination_country_code: String,
     pub expires_at: Option<String>,
     pub notes: Option<String>,
+    #[serde(default)]
+    pub tia_completed: bool,
+    pub dpa_id: Option<String>,
+    pub scc_module: Option<String>,
 }
 
 #[derive(sqlx::FromRow, Serialize)]
@@ -503,6 +513,18 @@ pub struct SccRegistryRow {
     pub notes: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    #[sqlx(default)]
+    pub tia_completed: bool,
+    #[sqlx(default)]
+    pub dpa_id: Option<String>,
+    #[sqlx(default)]
+    pub scc_module: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SccRegistryPatchRequest {
+    pub tia_completed: Option<bool>,
 }
 
 #[post("/api/v1/scc-registries")]
@@ -519,14 +541,17 @@ pub async fn register_scc(
     let dest_upper = body.destination_country_code.to_uppercase();
     let row = match sqlx::query_as::<_, SccRegistryRow>(
         r#"INSERT INTO scc_registries 
-           (partner_name, destination_country_code, status, expires_at, registered_by, notes)
-           VALUES ($1, $2, 'active', $3, 'admin', $4)
+           (partner_name, destination_country_code, status, expires_at, registered_by, notes, tia_completed, dpa_id, scc_module)
+           VALUES ($1, $2, 'active', $3, 'admin', $4, $5, $6, $7)
            RETURNING *"#
     )
     .bind(&body.partner_name)
     .bind(&dest_upper)
     .bind(&expires_at)
     .bind(&body.notes)
+    .bind(body.tia_completed)
+    .bind(&body.dpa_id)
+    .bind(&body.scc_module)
     .fetch_one(pool.get_ref())
     .await {
         Ok(r) => r,
@@ -562,6 +587,9 @@ pub async fn register_scc(
         "notes": row.notes,
         "createdAt": row.created_at.to_rfc3339(),
         "updatedAt": row.updated_at.to_rfc3339(),
+        "tiaCompleted": row.tia_completed,
+        "dpaId": row.dpa_id,
+        "sccModule": row.scc_module,
     }))
 }
 
@@ -595,6 +623,9 @@ pub async fn list_scc_registries(
             "notes": r.notes,
             "createdAt": r.created_at.to_rfc3339(),
             "updatedAt": r.updated_at.to_rfc3339(),
+            "tiaCompleted": r.tia_completed,
+            "dpaId": r.dpa_id,
+            "sccModule": r.scc_module,
         })
     }).collect();
 
@@ -605,14 +636,68 @@ pub async fn list_scc_registries(
 }
 
 #[derive(Deserialize)]
-pub struct DeleteSccPath {
+pub struct SccRegistryPath {
     pub id: String,
+}
+
+#[patch("/api/v1/scc-registries/{id}")]
+pub async fn patch_scc_registry(
+    pool: web::Data<PgPool>,
+    path: web::Path<SccRegistryPath>,
+    body: web::Json<SccRegistryPatchRequest>,
+) -> HttpResponse {
+    let id = match Uuid::parse_str(&path.id) {
+        Ok(u) => u,
+        Err(_) => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "INVALID_ID",
+                "message": "Invalid UUID format",
+            }));
+        }
+    };
+
+    if let Some(tia_completed) = body.tia_completed {
+        let result = sqlx::query(
+            "UPDATE scc_registries SET tia_completed = $1, updated_at = NOW() WHERE id = $2 AND status = 'active'"
+        )
+        .bind(tia_completed)
+        .bind(id)
+        .execute(pool.get_ref())
+        .await;
+
+        match result {
+            Ok(res) if res.rows_affected() > 0 => {
+                return HttpResponse::Ok().json(serde_json::json!({
+                    "success": true,
+                    "id": path.id,
+                    "tiaCompleted": tia_completed,
+                }));
+            }
+            Ok(_) => {
+                return HttpResponse::NotFound().json(serde_json::json!({
+                    "error": "NOT_FOUND",
+                    "message": "SCC registry not found or already revoked",
+                }));
+            }
+            Err(e) => {
+                return HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": "PATCH_FAILED",
+                    "message": format!("Failed to update SCC: {}", e),
+                }));
+            }
+        }
+    }
+
+    HttpResponse::BadRequest().json(serde_json::json!({
+        "error": "INVALID_REQUEST",
+        "message": "No updatable fields provided",
+    }))
 }
 
 #[delete("/api/v1/scc-registries/{id}")]
 pub async fn revoke_scc(
     pool: web::Data<PgPool>,
-    path: web::Path<DeleteSccPath>,
+    path: web::Path<SccRegistryPath>,
 ) -> HttpResponse {
     let id = match Uuid::parse_str(&path.id) {
         Ok(u) => u,
@@ -663,5 +748,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
        .service(transfers_by_destination)
        .service(register_scc)
        .service(list_scc_registries)
+       .service(patch_scc_registry)
        .service(revoke_scc);
 }

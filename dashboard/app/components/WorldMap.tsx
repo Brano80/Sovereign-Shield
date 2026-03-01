@@ -19,32 +19,40 @@ interface WorldMapProps {
   onCountryClick?: (country: CountryData) => void;
 }
 
-const getCountryColor = (status: string, transfers: number = 0): string => {
-  // In empty state (no transfers), use muted/greyed colors
+// Fill color: SCC Required uses grey (orange outline applied via stroke)
+const getCountryFill = (status: string, transfers: number = 0): string => {
   if (transfers === 0) {
     switch (status) {
       case 'adequate_protection':
-        return '#374151'; // grey-700 (muted green)
+        return '#374151';
       case 'scc_required':
-        return '#4B5563'; // grey-600 (muted orange)
+        return '#4B5563'; // grey interior
       case 'blocked':
-        return '#6B7280'; // grey-500 (muted red)
+        return '#6B7280';
       default:
-        return '#374151'; // grey-700
+        return '#374151';
     }
   }
-
-  // Normal colors when there are active transfers
   switch (status) {
     case 'adequate_protection':
-      return '#10B981'; // green-500
+      return '#10B981'; // green
     case 'scc_required':
-      return '#F97316'; // orange-500
+      return '#4B5563'; // grey with orange outline
     case 'blocked':
-      return '#EF4444'; // red-500
+      return '#F87171'; // red-400 (matches BLOCKED KPI card)
     default:
       return '#64748B'; // slate-500
   }
+};
+
+// Stroke for SCC Required: orange outline/glow
+const getCountryStroke = (status: string, transfers: number = 0): string => {
+  if (status === 'scc_required') return '#F97316'; // orange
+  return '#64748b'; // default slate
+};
+
+const getCountryStrokeWidth = (status: string): number => {
+  return status === 'scc_required' ? 1.5 : 0.5;
 };
 
 const formatStatus = (status: string): string => {
@@ -130,24 +138,27 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries = [], isLoading, onCountr
           }}
           className="w-full h-full"
         >
-          <ZoomableGroup>
+          <ZoomableGroup center={[0, 20]} zoom={1.35}>
             <Geographies geography={geoUrl}>
               {({ geographies }) =>
                 geographies.map((geo) => {
                   const countryName = geo.properties.name;
                   const countryData = getCountryData(countryName);
-                  
-                  const fillColor = countryData 
-                    ? getCountryColor(countryData.status, countryData.transfers || 0)
+                  const status = countryData?.status;
+                  const transfers = countryData?.transfers || 0;
+                  const fillColor = countryData
+                    ? getCountryFill(status!, transfers)
                     : '#374151';
+                  const strokeColor = countryData ? getCountryStroke(status!, transfers) : '#64748b';
+                  const strokeWidth = countryData ? getCountryStrokeWidth(status!) : 0.5;
 
                   return (
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
                       fill={fillColor}
-                      stroke="#64748b"
-                      strokeWidth={0.5}
+                      stroke={strokeColor}
+                      strokeWidth={strokeWidth}
                       onMouseEnter={(event) => handleMouseEnter(geo, event)}
                       onMouseLeave={handleMouseLeave}
                       onClick={() => handleCountryClick(geo)}
@@ -172,11 +183,11 @@ const WorldMap: React.FC<WorldMapProps> = ({ countries = [], isLoading, onCountr
           <span className="text-xs text-slate-300">Adequate Protection</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-orange-500 rounded"></div>
+          <div className="w-4 h-4 rounded bg-slate-600 border-2 border-orange-500"></div>
           <span className="text-xs text-slate-300">SCC Required</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-500 rounded"></div>
+          <div className="w-4 h-4 bg-red-400 rounded"></div>
           <span className="text-xs text-slate-300">Transfer Blocked</span>
         </div>
       </div>

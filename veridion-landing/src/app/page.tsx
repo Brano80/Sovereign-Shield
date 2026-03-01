@@ -151,7 +151,7 @@ export default function Home() {
       data: {
         labels: ["50k", "250k", "500k", "750k", "1M"],
         datasets: [{
-          label: "Monthly Cost (USD)",
+          label: "Monthly Cost (EUR)",
           data: chartPoints,
           borderColor: "#0ea5e9",
           tension: 0.4,
@@ -202,9 +202,9 @@ export default function Home() {
         <nav className="fixed top-0 w-full z-50 bg-[#080c14] shadow-sm border-b border-slate-800">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
             <a href="/" className="flex items-center gap-2" aria-label="Veridion Nexus home">
-              <VeridionLogo className="h-[4rem] w-auto" />
+              <VeridionLogo className="h-8 w-auto text-base" />
             </a>
-            <div className="hidden md:flex gap-8 text-sm font-semibold text-slate-300">
+            <div className="hidden md:flex gap-8 text-sm font-semibold text-slate-300 items-center">
               <a href="#market" className="hover:text-white transition-colors">Problem</a>
               <a href="#engine" className="hover:text-white transition-colors">Evidence</a>
               <a href="#overview" className="hover:text-white transition-colors">Live</a>
@@ -228,7 +228,6 @@ export default function Home() {
           <div className="mt-8 flex flex-wrap gap-3 justify-center text-xs font-bold">
             <span className="px-3 py-1.5 bg-slate-900 text-white rounded-full">Sovereign Shield</span>
             <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">Evidence Vault</span>
-            <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">Cryptographic Shredder</span>
             <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">Human Oversight</span>
           </div>
         </header>
@@ -281,10 +280,10 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <div className="w-12 h-12 bg-slate-600 rounded-xl flex items-center justify-center text-white shrink-0 font-bold text-xl">3</div>
+                  <div className="w-12 h-12 bg-rose-500 rounded-xl flex items-center justify-center text-white shrink-0 font-bold text-xl">3</div>
                   <div>
-                    <h4 className="font-bold text-slate-900">GDPR Art. 17 Erasure on Demand</h4>
-                    <p className="text-slate-500 text-sm">All transferred data is encrypted with AES-256-GCM. On an erasure request, the key is cryptographically shredded — making the data permanently unrecoverable without deleting it.</p>
+                    <h4 className="font-bold text-slate-900">Human Oversight for Every REVIEW Decision</h4>
+                    <p className="text-slate-500 text-sm">When Sovereign Shield cannot determine a safe legal basis, the transfer is flagged for human review per EU AI Act Art. 14. Every decision is sealed in the Evidence Vault.</p>
                   </div>
                 </div>
               </div>
@@ -468,10 +467,6 @@ export default function Home() {
                     <div className="w-2 h-2 rounded-full bg-sky-500"></div>
                     <span className="text-sm font-semibold text-slate-700">Evidence sealed for every ALLOW and BLOCK decision</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-sky-500"></div>
-                    <span className="text-sm font-semibold text-slate-700">GDPR Art. 17 erasure: cryptographic key shredding on demand</span>
-                  </div>
                 </div>
               </div>
               <div className="chart-container">
@@ -493,25 +488,25 @@ export default function Home() {
               {[
                 {
                   name: "Developer",
-                  price: "$0",
-                  sub: "Free forever",
+                  price: "€0",
+                  sub: "free forever",
                   cta: "Get API Key",
-                  features: ["10,000 evaluations/month", "Sovereign Shield (ALLOW/BLOCK)", "L1 Evidence Vault", "Community support"],
+                  features: ["3,000 evaluations/month", "Sovereign Shield (ALLOW/BLOCK)", "L1 Evidence Vault", "Community support"],
                 },
                 {
                   name: "Startup",
-                  price: "$49",
+                  price: "€99",
                   sub: "per month",
                   cta: "Start Free Trial",
-                  features: ["100,000 evaluations/month", "SCC Registry checks", "L1 + L2 Evidence Vault", "Human review queue", "Email support"],
+                  features: ["50,000 evaluations/month", "SCC Registry checks", "L1 + L2 Evidence Vault", "Human review queue", "Email support"],
                 },
                 {
                   name: "Growth",
-                  price: "$199",
+                  price: "€299",
                   sub: "per month",
                   cta: "Get Started",
                   badge: "Most Popular",
-                  features: ["1,000,000 evaluations/month", "Full L1–L3 Evidence Vault", "Crypto Shredder (GDPR Art. 17)", "TEE Provenance Sealing", "Priority support"],
+                  features: ["500,000 evaluations/month", "Full L1–L3 Evidence Vault", "Human Review Queue (EU AI Act Art. 14)", "TEE Provenance Sealing", "Priority support"],
                 },
                 {
                   name: "Enterprise",

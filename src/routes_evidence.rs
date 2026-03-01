@@ -28,10 +28,14 @@ pub async fn list_events(
         query.destination_country.as_deref(),
         limit,
     ).await {
-        Ok((events, total)) => HttpResponse::Ok().json(serde_json::json!({
-            "events": events,
-            "totalCount": total,
-        })),
+        Ok((events, total)) => {
+            let merkle_roots = evidence::count_sealed_chain_roots(pool.get_ref()).await.unwrap_or(0);
+            HttpResponse::Ok().json(serde_json::json!({
+                "events": events,
+                "totalCount": total,
+                "merkleRoots": merkle_roots,
+            }))
+        }
         Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
             "error": e,
         })),
@@ -88,6 +92,7 @@ pub async fn create_event(
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VerifyBody {
+    #[serde(alias = "source_system")]
     pub source_system: Option<String>,
 }
 

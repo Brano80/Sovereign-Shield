@@ -1,50 +1,7 @@
 'use client';
 
 import DashboardLayout from '../components/DashboardLayout';
-
-const adequateCountries = [
-  { name: 'Andorra', code: 'AD', flag: '🇦🇩' },
-  { name: 'Argentina', code: 'AR', flag: '🇦🇷' },
-  { name: 'Canada', code: 'CA', flag: '🇨🇦' },
-  { name: 'Faroe Islands', code: 'FO', flag: '🇫🇴' },
-  { name: 'Guernsey', code: 'GG', flag: '🇬🇬' },
-  { name: 'Israel', code: 'IL', flag: '🇮🇱' },
-  { name: 'Isle of Man', code: 'IM', flag: '🇮🇲' },
-  { name: 'Japan', code: 'JP', flag: '🇯🇵' },
-  { name: 'Jersey', code: 'JE', flag: '🇯🇪' },
-  { name: 'New Zealand', code: 'NZ', flag: '🇳🇿' },
-  { name: 'Republic of Korea', code: 'KR', flag: '🇰🇷' },
-  { name: 'Switzerland', code: 'CH', flag: '🇨🇭' },
-  { name: 'United Kingdom', code: 'GB', flag: '🇬🇧' },
-  { name: 'Uruguay', code: 'UY', flag: '🇺🇾' },
-];
-
-const sccRequiredCountries = [
-  { name: 'United States', code: 'US', flag: '🇺🇸' },
-  { name: 'India', code: 'IN', flag: '🇮🇳' },
-  { name: 'Brazil', code: 'BR', flag: '🇧🇷' },
-  { name: 'South Africa', code: 'ZA', flag: '🇿🇦' },
-  { name: 'Mexico', code: 'MX', flag: '🇲🇽' },
-  { name: 'Indonesia', code: 'ID', flag: '🇮🇩' },
-  { name: 'Turkey', code: 'TR', flag: '🇹🇷' },
-  { name: 'Philippines', code: 'PH', flag: '🇵🇭' },
-  { name: 'Vietnam', code: 'VN', flag: '🇻🇳' },
-  { name: 'Egypt', code: 'EG', flag: '🇪🇬' },
-  { name: 'Nigeria', code: 'NG', flag: '🇳🇬' },
-  { name: 'Pakistan', code: 'PK', flag: '🇵🇰' },
-  { name: 'Bangladesh', code: 'BD', flag: '🇧🇩' },
-  { name: 'Thailand', code: 'TH', flag: '🇹🇭' },
-  { name: 'Malaysia', code: 'MY', flag: '🇲🇾' },
-];
-
-const blockedCountries = [
-  { name: 'China', code: 'CN', flag: '🇨🇳' },
-  { name: 'Russia', code: 'RU', flag: '🇷🇺' },
-  { name: 'Iran', code: 'IR', flag: '🇮🇷' },
-  { name: 'North Korea', code: 'KP', flag: '🇰🇵' },
-  { name: 'Syria', code: 'SY', flag: '🇸🇾' },
-  { name: 'Belarus', code: 'BY', flag: '🇧🇾' },
-];
+import { ADEQUATE_COUNTRY_LIST, SCC_REQUIRED_COUNTRY_LIST, BLOCKED_COUNTRY_LIST } from '../config/countries';
 
 function CountryCard({
   country,
@@ -52,25 +9,26 @@ function CountryCard({
   badgeClass,
   borderHoverClass,
 }: {
-  country: { name: string; code: string; flag: string };
+  country: { name: string; code: string; flag: string; note?: string; badgeLabel?: string };
   badgeLabel: string;
   badgeClass: string;
   borderHoverClass: string;
 }) {
+  const displayBadgeLabel = country.badgeLabel || badgeLabel;
   return (
     <div
       className={`p-4 bg-slate-700/50 rounded-lg border border-slate-600 transition-colors ${borderHoverClass}`}
     >
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">{country.flag}</span>
-        <div>
-          <div className="text-sm font-medium text-white">{country.name}</div>
-          <div className="text-xs text-slate-400">{country.code}</div>
-        </div>
+      <div>
+        <div className="text-sm font-medium text-white">{country.name}</div>
+        <div className="text-xs text-slate-400">{country.code}</div>
+        {country.note && (
+          <div className="text-xs text-slate-500 mt-1 italic">{country.note}</div>
+        )}
       </div>
       <div className="mt-2">
         <span className={`px-2 py-1 rounded text-xs font-medium ${badgeClass}`}>
-          {badgeLabel}
+          {displayBadgeLabel}
         </span>
       </div>
     </div>
@@ -102,12 +60,12 @@ export default function AdequateCountriesPage() {
               Official Commission adequacy list →
             </a>
             <div className="grid grid-cols-1 gap-3 flex-1">
-              {adequateCountries.map((country) => (
+              {ADEQUATE_COUNTRY_LIST.map((country) => (
                 <CountryCard
                   key={country.code}
                   country={country}
                   badgeLabel="Adequate Protection"
-                  badgeClass="bg-green-500/20 text-green-400"
+                  badgeClass="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
                   borderHoverClass="hover:border-green-500/50"
                 />
               ))}
@@ -131,6 +89,11 @@ export default function AdequateCountriesPage() {
                 />
               ))}
             </div>
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <p className="text-xs text-slate-400">
+                * US transfers to DPF-certified organizations may qualify under Art. 45 adequacy decision (EU-US Data Privacy Framework).
+              </p>
+            </div>
           </div>
 
           {/* Blocked Countries */}
@@ -140,12 +103,12 @@ export default function AdequateCountriesPage() {
               No transfer permitted under organisational policy (GDPR does not prohibit any country by name; a legal basis is required)
             </p>
             <div className="grid grid-cols-1 gap-3 flex-1">
-              {blockedCountries.map((country) => (
+              {BLOCKED_COUNTRY_LIST.map((country) => (
                 <CountryCard
                   key={country.code}
                   country={country}
                   badgeLabel="Blocked"
-                  badgeClass="bg-red-500/20 text-red-400"
+                  badgeClass="bg-red-500/15 text-red-400 border border-red-500/25"
                   borderHoverClass="hover:border-red-500/50"
                 />
               ))}

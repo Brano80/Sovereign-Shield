@@ -8,12 +8,15 @@ const EU_EEA: &[&str] = &[
 ];
 
 const ADEQUATE: &[&str] = &[
-    "AD","AR","CA","FO","GG","IL","IM","JP","JE","NZ","KR","GB","UY","CH",
+    "AD","AR","BR","CA","FO","GG","IL","IM","JP","JE","NZ","KR","GB","UY","CH",
 ];
 
-const SCC_REQUIRED: &[&str] = &["US","AU","BR","MX","SG","ZA"];
+const SCC_REQUIRED: &[&str] = &[
+    "US","AU","IN","MX","SG","ZA",
+    "ID","TR","PH","VN","EG","NG","PK","BD","TH","MY"
+];
 
-const BLOCKED: &[&str] = &["CN","RU","KP","IR","SY","VE","BY"];
+const BLOCKED: &[&str] = &["CN","RU","KP","IR","SY","BY"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Decision {
@@ -77,6 +80,16 @@ pub fn country_name(code: &str) -> String {
         "CA" => "Canada".into(),
         "IL" => "Israel".into(),
         "NZ" => "New Zealand".into(),
+        "ID" => "Indonesia".into(),
+        "TR" => "Turkey".into(),
+        "PH" => "Philippines".into(),
+        "VN" => "Vietnam".into(),
+        "EG" => "Egypt".into(),
+        "NG" => "Nigeria".into(),
+        "PK" => "Pakistan".into(),
+        "BD" => "Bangladesh".into(),
+        "TH" => "Thailand".into(),
+        "MY" => "Malaysia".into(),
         "DE" => "Germany".into(),
         "FR" => "France".into(),
         "NL" => "Netherlands".into(),

@@ -3,30 +3,30 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '../components/DashboardLayout';
-import { fetchSCCRegistries, createSCCRegistry, SCCRegistry } from '../utils/api';
-import { Plus, ChevronDown, ChevronRight, RefreshCw, Eye, Edit, RotateCcw, Trash2 } from 'lucide-react';
+import { fetchSCCRegistries, createSCCRegistry, patchSCCRegistry, revokeSCCRegistry, SCCRegistry } from '../utils/api';
+import { Plus, RefreshCw, Clipboard, FileText, AlertTriangle, CheckCircle, Pencil } from 'lucide-react';
+import { SCC_REQUIRED_COUNTRIES, COUNTRY_NAMES, SCC_REQUIRED_COUNTRY_LIST } from '../config/countries';
 
-const SCC_REQUIRED_COUNTRIES = [
-  { code: 'US', name: 'United States', flag: '🇺🇸' },
-  { code: 'IN', name: 'India', flag: '🇮🇳' },
-  { code: 'BR', name: 'Brazil', flag: '🇧🇷' },
-  { code: 'MX', name: 'Mexico', flag: '🇲🇽' },
-  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
-  { code: 'KR', name: 'South Korea', flag: '🇰🇷' },
-  { code: 'ZA', name: 'South Africa', flag: '🇿🇦' },
-];
+const MODULE_LABELS: Record<string, string> = {
+  'Module1': 'C2C', // Controller → Controller
+  'Module2': 'C2P', // Controller → Processor
+  'Module3': 'P2P', // Processor → Processor
+  'Module4': 'P2C', // Processor → Controller
+};
+
+function getModuleLabel(sccModule?: string): string {
+  if (!sccModule) return 'C2C';
+  const normalized = /Module\s*(\d)/i.exec(sccModule)?.[0]?.replace(/\s+/g, '') || sccModule;
+  return MODULE_LABELS[normalized] || MODULE_LABELS[sccModule] || sccModule;
+}
 
 const PARTNER_SUGGESTIONS = [
-  'AWS Inc.',
+  'AWS',
   'Google Cloud',
   'Microsoft Azure',
   'Salesforce',
-  'Wipro Ltd',
-  'TCS',
-  'Adobe',
-  'Oracle',
-  'IBM',
-  'SAP',
+  'OpenAI',
+  'Snowflake',
 ];
 
 type SCCModule = 'Module1' | 'Module2' | 'Module3' | 'Module4';
@@ -36,7 +36,6 @@ export default function SCCRegistryPage() {
   const [registries, setRegistries] = useState<SCCRegistry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All Status' | 'ACTIVE' | 'EXPIRING' | 'EXPIRED'>('All Status');
   const [wizardStep, setWizardStep] = useState(0); // 0 = closed, 1-3 = steps
@@ -51,14 +50,18 @@ export default function SCCRegistryPage() {
   });
   const [partnerSearch, setPartnerSearch] = useState('');
   const [showPartnerSuggestions, setShowPartnerSuggestions] = useState(false);
+  const [tiaConfirmingId, setTiaConfirmingId] = useState<string | null>(null);
+  const [revokeConfirmingId, setRevokeConfirmingId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [wizardRenewRegistry, setWizardRenewRegistry] = useState<SCCRegistry | null>(null);
 
   useEffect(() => {
     loadRegistries();
-    
+
     // Pre-fill from query parameters if present
     const countryParam = searchParams?.get('country');
     const partnerParam = searchParams?.get('partner');
-    
+
     if (countryParam || partnerParam) {
       setWizardData(prev => ({
         ...prev,
@@ -72,6 +75,12 @@ export default function SCCRegistryPage() {
       }
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const t = setTimeout(() => setToastMessage(null), 3000);
+    return () => clearTimeout(t);
+  }, [toastMessage]);
 
   async function loadRegistries() {
     try {
@@ -94,13 +103,20 @@ export default function SCCRegistryPage() {
 
   async function handleWizardSubmit() {
     try {
-      const countryName = SCC_REQUIRED_COUNTRIES.find(c => c.code === wizardData.countryCode)?.name || wizardData.countryCode;
-      await createSCCRegistry({
+      const requestData = {
         partnerName: wizardData.partnerName,
-        destinationCountry: countryName,
+        destinationCountryCode: wizardData.countryCode,
         expiryDate: wizardData.expiryDate || undefined,
-      });
+        tiaCompleted: wizardData.tiaCompleted,
+        dpaId: wizardData.dpaId || undefined,
+        sccModule: wizardData.sccModule || undefined,
+      };
+
+      await createSCCRegistry(requestData);
+
+      const wasRenewal = !!wizardRenewRegistry;
       setWizardStep(0);
+      setWizardRenewRegistry(null);
       setWizardData({
         partnerName: '',
         countryCode: '',
@@ -111,6 +127,7 @@ export default function SCCRegistryPage() {
         tiaCompleted: false,
       });
       setPartnerSearch('');
+      setToastMessage(wasRenewal ? 'SCC renewed successfully' : 'SCC registered successfully');
       await loadRegistries();
     } catch (error) {
       console.error('Failed to create SCC registry:', error);
@@ -119,54 +136,106 @@ export default function SCCRegistryPage() {
     }
   }
 
-  const toggleRowExpansion = (id: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
+  async function handleTiaConfirm(registryId: string) {
+    setTiaConfirmingId(null);
+    try {
+      await patchSCCRegistry(registryId, { tiaCompleted: true });
+      setRegistries(prev => prev.map(r =>
+        r.id === registryId ? { ...r, tiaCompleted: true } : r
+      ));
+      setToastMessage('TIA marked as completed');
+    } catch {
+      setToastMessage('Failed to update TIA status');
     }
-    setExpandedRows(newExpanded);
+  }
+
+  async function handleRevoke(registry: SCCRegistry) {
+    const countryName = COUNTRY_NAMES[getCountryCode(registry.destinationCountry)] || registry.destinationCountry;
+    setRevokeConfirmingId(null);
+    const previousRegistries = [...registries];
+    setRegistries(prev => prev.filter(r => r.id !== registry.id));
+    try {
+      await revokeSCCRegistry(registry.id);
+      setToastMessage(`SCC revoked — transfers to ${countryName} via ${registry.partnerName} will require review`);
+    } catch (err) {
+      setRegistries(previousRegistries);
+      setToastMessage(err instanceof Error ? err.message : 'Failed to revoke SCC');
+    }
+  }
+
+  function handleRenewClick(registry: SCCRegistry) {
+    const countryCode = getCountryCode(registry.destinationCountry);
+    setWizardRenewRegistry(registry);
+    setWizardData(prev => ({
+      ...prev,
+      partnerName: registry.partnerName,
+      countryCode,
+      sccModule: (registry.sccModule as SCCModule) || 'Module1',
+      dpaId: registry.dpaId || prev.dpaId || '',
+      signedDate: prev.signedDate || new Date().toISOString().slice(0, 10),
+      expiryDate: prev.expiryDate || '',
+    }));
+    setPartnerSearch(registry.partnerName);
+    setWizardStep(3);
+  }
+
+
+  const getStatusConfig = (expiryDate?: string) => {
+    if (!expiryDate) return { label: 'ACTIVE', color: 'green', daysUntilExpiry: null };
+    const now = new Date().getTime();
+    const expiryTime = new Date(expiryDate).getTime();
+    const daysUntilExpiry = Math.ceil((expiryTime - now) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntilExpiry <= 0) {
+      return { label: 'EXPIRED', color: 'red', daysUntilExpiry };
+    } else if (daysUntilExpiry <= 14) {
+      return { label: 'EXPIRING', color: 'amber', daysUntilExpiry };
+    } else {
+      return { label: 'ACTIVE', color: 'green', daysUntilExpiry };
+    }
   };
 
-  const getStatusConfig = (expiryDate: string) => {
-    if (!expiryDate) return { level: 1, label: 'Active', color: 'green' };
-    const daysUntilExpiry = Math.ceil((new Date(expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    if (daysUntilExpiry <= 0) {
-      return { level: 4, label: 'EXPIRED', color: 'red' };
-    } else if (daysUntilExpiry <= 14) {
-      return { level: 4, label: 'EXPIRING', color: 'red' };
-    } else if (daysUntilExpiry <= 60) {
-      return { level: 2, label: 'EXPIRING', color: 'yellow' };
-    } else {
-      return { level: 1, label: 'ACTIVE', color: 'green' };
-    }
+  const getDaysUntilExpiryText = (expiryDate?: string): string => {
+    if (!expiryDate) return 'No expiry';
+    const status = getStatusConfig(expiryDate);
+    if (status.daysUntilExpiry === null) return 'No expiry';
+    if (status.daysUntilExpiry <= 0) return 'EXPIRED';
+    if (status.daysUntilExpiry <= 14) return `${status.daysUntilExpiry} days — renew urgently`;
+    return `${status.daysUntilExpiry} days remaining`;
   };
 
   const getStatusSummary = () => {
     if (!Array.isArray(registries)) {
-      return { total: 0, critical: 0, warning: 0, active: 0 };
+      return { total: 0, active: 0, expiringSoon: 0, expired: 0 };
     }
 
-    const critical = registries.filter(scc => {
-      if (!scc.expiryDate) return false;
-      const daysUntilExpiry = Math.ceil((new Date(scc.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-      return daysUntilExpiry <= 14 && daysUntilExpiry > 0;
-    }).length;
+    const now = new Date().getTime();
+    let active = 0;
+    let expiringSoon = 0;
+    let expired = 0;
 
-    const warning = registries.filter(scc => {
-      if (!scc.expiryDate) return false;
-      const daysUntilExpiry = Math.ceil((new Date(scc.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-      return daysUntilExpiry <= 60 && daysUntilExpiry > 14;
-    }).length;
+    registries.forEach(scc => {
+      if (!scc.expiryDate) {
+        active++;
+        return;
+      }
+      const expiryTime = new Date(scc.expiryDate).getTime();
+      const daysUntilExpiry = Math.ceil((expiryTime - now) / (1000 * 60 * 60 * 24));
+      
+      if (daysUntilExpiry <= 0) {
+        expired++;
+      } else {
+        active++;
+        if (daysUntilExpiry <= 14) expiringSoon++;
+      }
+    });
 
-    const active = registries.filter(scc => {
-      if (!scc.expiryDate) return true;
-      const daysUntilExpiry = Math.ceil((new Date(scc.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-      return daysUntilExpiry > 60;
-    }).length;
-
-    return { total: registries.length, critical, warning, active };
+    return { 
+      total: registries.length, 
+      active, 
+      expiringSoon, 
+      expired 
+    };
   };
 
   const filteredRegistries = Array.isArray(registries) ? registries.filter(registry => {
@@ -177,16 +246,23 @@ export default function SCCRegistryPage() {
     if (statusFilter === 'All Status') return matchesSearch;
     
     const status = getStatusConfig(registry.expiryDate || '');
-    if (statusFilter === 'ACTIVE') return matchesSearch && status.label === 'ACTIVE';
+    if (statusFilter === 'ACTIVE') return matchesSearch && status.label !== 'EXPIRED';
     if (statusFilter === 'EXPIRING') return matchesSearch && status.label === 'EXPIRING';
     if (statusFilter === 'EXPIRED') return matchesSearch && status.label === 'EXPIRED';
     
     return matchesSearch;
   }) : [];
 
-  const getCountryFlag = (countryCode: string) => {
-    const country = SCC_REQUIRED_COUNTRIES.find(c => c.code === countryCode);
-    return country?.flag || '🏳️';
+  const getCountryCode = (countryNameOrCode: string): string => {
+    // If it's already a 2-letter code, return it
+    if (countryNameOrCode.length === 2 && /^[A-Z]{2}$/.test(countryNameOrCode.toUpperCase())) {
+      return countryNameOrCode.toUpperCase();
+    }
+    // Otherwise, try to find the code from COUNTRY_NAMES
+    const entry = Object.entries(COUNTRY_NAMES).find(([_, name]) => 
+      name.toLowerCase() === countryNameOrCode.toLowerCase()
+    );
+    return entry ? entry[0] : countryNameOrCode.toUpperCase();
   };
 
   const filteredPartners = PARTNER_SUGGESTIONS.filter(partner =>
@@ -214,7 +290,10 @@ export default function SCCRegistryPage() {
               Refresh
             </button>
             <button
-              onClick={() => setWizardStep(1)}
+              onClick={() => {
+                setWizardRenewRegistry(null);
+                setWizardStep(1);
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
@@ -244,188 +323,218 @@ export default function SCCRegistryPage() {
           />
         </div>
 
-        {/* Summary */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-slate-300">
-              Summary: <span className="text-white font-medium">{statusSummary.total}</span> Active SCCs
-            </span>
-            {statusSummary.critical > 0 && (
-              <>
-                <span className="text-slate-500">|</span>
-                <span className="text-red-400 font-medium">{statusSummary.critical} Critical</span>
-              </>
-            )}
-            {statusSummary.warning > 0 && (
-              <>
-                <span className="text-slate-500">|</span>
-                <span className="text-yellow-400 font-medium">{statusSummary.warning} Warning</span>
-              </>
-            )}
-            {statusSummary.active > 0 && (
-              <>
-                <span className="text-slate-500">|</span>
-                <span className="text-green-400 font-medium">{statusSummary.active} Active</span>
-              </>
-            )}
-            <span className="ml-auto text-xs text-slate-500">
-              SCC Types: C2C = Controller to Controller | C2P = Controller to Processor
-            </span>
+        {/* KPI Cards */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-400 font-medium">TOTAL SCCs</div>
+              <FileText className="w-4 h-4 text-slate-500" />
+            </div>
+            <div className="text-2xl font-bold text-white">{statusSummary.total}</div>
+            <div className="text-xs text-slate-500 mt-1">All registries</div>
+          </div>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-400 font-medium">ACTIVE</div>
+              <CheckCircle className="w-4 h-4 text-green-500" />
+            </div>
+            <div className="text-2xl font-bold text-green-400">{statusSummary.active}</div>
+            <div className="text-xs text-slate-500 mt-1">Not yet expired</div>
+          </div>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-400 font-medium">EXPIRING SOON</div>
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+            </div>
+            <div className="text-2xl font-bold text-amber-400">{statusSummary.expiringSoon}</div>
+            <div className="text-xs text-slate-500 mt-1">≤ 14 days until expiry</div>
+          </div>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-400 font-medium">EXPIRED / CRITICAL</div>
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+            </div>
+            <div className="text-2xl font-bold text-red-400">{statusSummary.expired}</div>
+            <div className="text-xs text-slate-500 mt-1">Expired registries</div>
           </div>
         </div>
 
-        {/* Table */}
+        {/* Registry Cards */}
         {loading ? (
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-8 text-center text-slate-400">
             Loading...
           </div>
         ) : filteredRegistries.length === 0 ? (
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-8 text-center">
-            <p className="text-slate-400 mb-2">No SCC registrations found.</p>
-            <p className="text-sm text-slate-500">Create your first regulatory anchor.</p>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-12 flex flex-col items-center justify-center text-center">
+            <Clipboard className="w-16 h-16 text-slate-500 mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">No SCC Registrations</h2>
+            <p className="text-slate-400 mb-6 max-w-md">
+              Transfers to SCC-required countries (US, IN, MX, SG, ZA and others) are currently in REVIEW status. Register Standard Contractual Clauses to allow these transfers under GDPR Art. 46.
+            </p>
+            <button
+              onClick={() => setWizardStep(1)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Register New SCC
+            </button>
           </div>
         ) : (
-          <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-700/50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider w-8"></th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      PARTNER
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      COUNTRY
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      TYPE
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      SIGNED
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      EXPIRES
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      STATUS
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700">
-                  {filteredRegistries.map((registry) => {
-                    const status = getStatusConfig(registry.expiryDate || '');
-                    const isExpanded = expandedRows.has(registry.id);
-                    return (
-                      <>
-                        <tr key={registry.id} className="hover:bg-slate-700/30">
-                          <td className="px-6 py-4">
-                            <button
-                              onClick={() => toggleRowExpansion(registry.id)}
-                              className="text-slate-400 hover:text-slate-300"
-                            >
-                              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                            </button>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-white font-medium">
-                            {registry.partnerName}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-300">
-                            {getCountryFlag(registry.destinationCountry)} {registry.destinationCountry}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-300">
-                            C2C
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-300">
-                            {registry.expiryDate ? new Date(registry.expiryDate).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-300">
-                            {registry.expiryDate ? new Date(registry.expiryDate).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              status.color === 'red'
-                                ? 'bg-red-500/20 text-red-400'
-                                : status.color === 'yellow'
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : 'bg-green-500/20 text-green-400'
-                            }`}>
-                              {status.label}
+          <div className="space-y-4">
+            {filteredRegistries.map((registry) => {
+              const status = getStatusConfig(registry.expiryDate);
+              const countryCode = getCountryCode(registry.destinationCountry);
+              const countryName = COUNTRY_NAMES[countryCode] || registry.destinationCountry;
+              const daysText = getDaysUntilExpiryText(registry.expiryDate);
+              const daysColor = status.daysUntilExpiry === null || (status.daysUntilExpiry && status.daysUntilExpiry > 14)
+                ? 'text-green-400'
+                : status.daysUntilExpiry && status.daysUntilExpiry > 0
+                ? 'text-amber-400'
+                : 'text-red-400';
+
+              return (
+                <div
+                  key={registry.id}
+                  className="bg-slate-800 border border-slate-700 rounded-lg p-5 space-y-4"
+                >
+                  {/* Top row: flag + country name + partner name + status badge */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {countryCode && countryCode.length === 2 && (
+                        <img
+                          src={`https://flagcdn.com/24x18/${countryCode.toLowerCase()}.png`}
+                          alt=""
+                          className="w-6 h-[18px] object-cover rounded-sm shrink-0"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-white font-bold">{countryName}</div>
+                        <div className="text-sm text-slate-400 truncate">{registry.partnerName}</div>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-xs font-medium border shrink-0 ${
+                      status.color === 'red'
+                        ? 'bg-red-500/15 text-red-400 border-red-500/25'
+                        : status.color === 'amber'
+                        ? 'bg-amber-500/15 text-amber-400 border-amber-500/25'
+                        : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
+                    }`}>
+                      {status.label}
+                    </span>
+                  </div>
+
+                  {/* Middle: SCC Module, DPA ID, Signed date → Expiry date */}
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <div className="text-xs text-slate-400 mb-1">SCC Module</div>
+                      <div className="text-white">{getModuleLabel(registry.sccModule)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400 mb-1">DPA ID</div>
+                      <div className="text-white">{registry.dpaId || '—'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400 mb-1">Signed → Expiry</div>
+                      <div className="text-white">
+                        {registry.expiryDate 
+                          ? `${new Date(registry.createdAt).toLocaleDateString()} → ${new Date(registry.expiryDate).toLocaleDateString()}`
+                          : registry.createdAt
+                          ? `${new Date(registry.createdAt).toLocaleDateString()} → No expiry`
+                          : '—'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom row: TIA status + days until expiry + Revoke / Renew */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-700">
+                    <div className="flex flex-col gap-2">
+                      {(() => {
+                        const effectiveTiaCompleted = registry.tiaCompleted;
+                        const isConfirming = tiaConfirmingId === registry.id;
+                        if (effectiveTiaCompleted) {
+                          return (
+                            <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                              ✓ TIA Completed
                             </span>
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr>
-                            <td colSpan={7} className="px-6 py-4 bg-slate-700/20">
-                              <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                  <h4 className="text-sm font-semibold text-white mb-3">Contract Details</h4>
-                                  <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-400">Type:</span>
-                                      <span className="text-white">C2C</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-400">Signed:</span>
-                                      <span className="text-white">{registry.expiryDate ? new Date(registry.expiryDate).toLocaleDateString() : 'N/A'}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-400">Expires:</span>
-                                      <span className="text-white">{registry.expiryDate ? new Date(registry.expiryDate).toLocaleDateString() : 'N/A'}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-400">DPA ID:</span>
-                                      <span className="text-white">—</span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div>
-                                  <h4 className="text-sm font-semibold text-white mb-3">Expiry & Compliance</h4>
-                                  <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-400">Days Until Expiry:</span>
-                                      <span className="text-white">
-                                        {registry.expiryDate
-                                          ? (() => {
-                                              const days = Math.ceil((new Date(registry.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                                              return days <= 0 ? 'EXPIRED' : `${days} days`;
-                                            })()
-                                          : 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-400">TIA Completed:</span>
-                                      <span className="text-white">No</span>
-                                    </div>
-                                  </div>
-                                  <div className="mt-4 flex gap-2">
-                                    <button className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-medium transition-colors flex items-center gap-1">
-                                      <Eye className="w-3 h-3" />
-                                      View Contract
-                                    </button>
-                                    <button className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-medium transition-colors flex items-center gap-1">
-                                      <Edit className="w-3 h-3" />
-                                      Edit
-                                    </button>
-                                    <button className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-medium transition-colors flex items-center gap-1">
-                                      <RotateCcw className="w-3 h-3" />
-                                      Renew SCC
-                                    </button>
-                                    <button className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded text-xs font-medium transition-colors flex items-center gap-1">
-                                      <Trash2 className="w-3 h-3" />
-                                      Revoke
-                                    </button>
-                                  </div>
-                                </div>
+                          );
+                        }
+                        if (isConfirming) {
+                          return (
+                            <div className="flex flex-col gap-2">
+                              <p className="text-xs text-slate-300">Mark Transfer Impact Assessment as completed?</p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleTiaConfirm(registry.id)}
+                                  className="px-2 py-1 rounded text-xs font-medium bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/25 transition-colors"
+                                >
+                                  ✓ Confirm
+                                </button>
+                                <button
+                                  onClick={() => setTiaConfirmingId(null)}
+                                  className="px-2 py-1 rounded text-xs font-medium bg-slate-600/30 hover:bg-slate-600/40 text-slate-300 border border-slate-500/25 transition-colors"
+                                >
+                                  Cancel
+                                </button>
                               </div>
-                            </td>
-                          </tr>
-                        )}
-                      </>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <button
+                            onClick={() => setTiaConfirmingId(registry.id)}
+                            className="px-2 py-1 rounded text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/25 hover:bg-amber-500/25 transition-colors text-left"
+                          >
+                            ⚠ TIA Pending
+                          </button>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-medium ${daysColor}`}>
+                        {daysText}
+                      </span>
+                      {status.label === 'EXPIRING' && (
+                        <button
+                          onClick={() => handleRenewClick(registry)}
+                          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-slate-600/20 hover:bg-slate-600/30 text-slate-300 border border-slate-500/25 transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          Renew
+                        </button>
+                      )}
+                      {revokeConfirmingId === registry.id ? (
+                        <div className="flex flex-col gap-2 items-end">
+                          <p className="text-xs text-slate-300 text-right">
+                            Revoke SCC for {countryName} / {registry.partnerName}? This cannot be undone.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setRevokeConfirmingId(null)}
+                              className="px-2 py-1 rounded text-xs font-medium bg-slate-600/30 hover:bg-slate-600/40 text-slate-300 border border-slate-500/25 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleRevoke(registry)}
+                              className="px-2 py-1 rounded text-xs font-medium bg-red-600/30 hover:bg-red-600/40 text-red-400 border border-red-500/25 transition-colors"
+                            >
+                              Confirm Revoke
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setRevokeConfirmingId(registry.id)}
+                          className="px-2 py-1 rounded text-xs font-medium bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/25 transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -435,11 +544,18 @@ export default function SCCRegistryPage() {
             <div className="bg-slate-800 rounded-lg p-6 w-full max-w-2xl border border-slate-700 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-white">SCC Registration Wizard</h2>
-                  <p className="text-sm text-slate-400 mt-1">Step {wizardStep} of 3</p>
+                  <h2 className="text-xl font-bold text-white">
+                    {wizardRenewRegistry ? 'Renew SCC' : 'SCC Registration Wizard'}
+                  </h2>
+                  <p className="text-sm text-slate-400 mt-1">
+                    {wizardRenewRegistry ? 'Update dates to renew' : `Step ${wizardStep} of 3`}
+                  </p>
                 </div>
                 <button
-                  onClick={() => setWizardStep(0)}
+                  onClick={() => {
+                    setWizardStep(0);
+                    setWizardRenewRegistry(null);
+                  }}
                   className="text-slate-400 hover:text-white"
                 >
                   ✕
@@ -498,6 +614,22 @@ export default function SCCRegistryPage() {
                         </div>
                       )}
                     </div>
+                    {/* Partner suggestion chips */}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {PARTNER_SUGGESTIONS.map((partner) => (
+                        <button
+                          key={partner}
+                          type="button"
+                          onClick={() => {
+                            setPartnerSearch(partner);
+                            setWizardData({ ...wizardData, partnerName: partner });
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white border border-slate-600 transition-colors"
+                        >
+                          {partner}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm text-slate-300 mb-2">Destination Country (SCC Required) *</label>
@@ -507,7 +639,7 @@ export default function SCCRegistryPage() {
                       className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select country...</option>
-                      {SCC_REQUIRED_COUNTRIES.map((country) => (
+                      {SCC_REQUIRED_COUNTRY_LIST.map((country) => (
                         <option key={country.code} value={country.code}>
                           {country.flag} {country.name} ({country.code})
                         </option>
@@ -543,10 +675,10 @@ export default function SCCRegistryPage() {
                       className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select module...</option>
-                      <option value="Module1">Module 1: Controller to Processor (C2P)</option>
-                      <option value="Module2">Module 2: Controller to Controller (C2C)</option>
-                      <option value="Module3">Module 3: Hybrid</option>
-                      <option value="Module4">Module 4: Other/Custom</option>
+                      <option value="Module1">Module 1: Controller → Controller (C2C)</option>
+                      <option value="Module2">Module 2: Controller → Processor (C2P)</option>
+                      <option value="Module3">Module 3: Processor → Processor (P2P)</option>
+                      <option value="Module4">Module 4: Processor → Controller (P2C)</option>
                     </select>
                   </div>
                   <div>
@@ -612,6 +744,11 @@ export default function SCCRegistryPage() {
                       TIA Completed (Transfer Impact Assessment)
                     </label>
                   </div>
+                  {!wizardData.tiaCompleted && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded p-3 text-amber-400 text-xs">
+                      ⚠ Transfer Impact Assessment required for SCC-based transfers to high-risk destinations per GDPR Art. 46. Transfers may still be reviewed without a completed TIA.
+                    </div>
+                  )}
                   <div className="bg-slate-700/50 rounded-lg p-4 mt-4">
                     <h4 className="text-sm font-semibold text-white mb-3">Registration Summary</h4>
                     <div className="space-y-2 text-sm">
@@ -622,7 +759,7 @@ export default function SCCRegistryPage() {
                       <div className="flex justify-between">
                         <span className="text-slate-400">Country:</span>
                         <span className="text-white">
-                          {SCC_REQUIRED_COUNTRIES.find(c => c.code === wizardData.countryCode)?.name || wizardData.countryCode}
+                          {COUNTRY_NAMES[wizardData.countryCode] || wizardData.countryCode}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -651,12 +788,19 @@ export default function SCCRegistryPage() {
                       disabled={!wizardData.signedDate || !wizardData.expiryDate}
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
                     >
-                      Register SCC
+                      {wizardRenewRegistry ? 'Renew SCC' : 'Register SCC'}
                     </button>
                   </div>
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Toast */}
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm shadow-lg z-[60]">
+            {toastMessage}
           </div>
         )}
       </div>

@@ -3,8 +3,76 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/DashboardLayout';
-import { fetchReviewQueueItem, fetchEvidenceEvents, rejectReviewQueueItem, approveReviewQueueItem, ReviewQueueItem, EvidenceEvent } from '../../utils/api';
+import { fetchReviewQueueItem, fetchEvidenceEvents, rejectReviewQueueItem, ReviewQueueItem, EvidenceEvent } from '../../utils/api';
 import { ArrowLeft, MapPin, Shield, AlertTriangle, FileText, CheckCircle, XCircle } from 'lucide-react';
+
+// Same severity system as Evidence Vault
+function formatEventTypeLabel(eventType: string): string {
+  const et = (eventType || '').toLowerCase();
+  if (et.includes('sovereign_shield') || et === 'sovereign_shield_evaluation' || et === 'sovereign_shield') return 'Transfer Evaluation';
+  if (et.includes('human_oversight_rejected') || et === 'human_oversight_rejected') return 'Human Review — Rejected';
+  if (et.includes('human_oversight_approved') || et === 'human_oversight_approved') return 'Human Review — Approved';
+  if (et === 'data_transfer') return 'Transfer Evaluation';
+  if (et === 'data_transfer_blocked') return 'Transfer — Blocked';
+  if (et === 'data_transfer_review') return 'Transfer — Review';
+  if (et.includes('gdpr_erasure') || et === 'gdpr_erasure') return 'GDPR Erasure';
+  if (et.includes('crypto_shredder') || et === 'crypto_shredder') return 'GDPR Erasure';
+  if (eventType) return eventType.replace(/_/g, ' ').toLowerCase();
+  return 'Unknown';
+}
+
+function getDerivedSeverity(event: { eventType?: string; sourceSystem?: string; verificationStatus?: string; payload?: { decision?: string } }): 'CRITICAL' | 'HIGH' | 'LOW' | 'INFO' | 'ERASURE' {
+  const label = formatEventTypeLabel(event.eventType || '');
+  const source = (event.sourceSystem || '').toLowerCase();
+  const decision = (event.verificationStatus || event.payload?.decision || '').toUpperCase();
+  if (label === 'Transfer — Blocked') return 'CRITICAL';
+  if (label === 'GDPR Erasure' || source.includes('crypto_shredder') || source.includes('crypto-shredder')) return 'ERASURE';
+  if (label === 'Transfer — Review') return 'HIGH';
+  if (label === 'Transfer Evaluation' && /^(ALLOW|ALLOWED|VERIFIED)$/.test(decision)) return 'LOW';
+  return 'INFO';
+}
+
+function getSeverityBadgeClass(severity: 'CRITICAL' | 'HIGH' | 'LOW' | 'INFO' | 'ERASURE'): string {
+  switch (severity) {
+    case 'CRITICAL': return 'bg-red-500/15 text-red-400 border border-red-500/25';
+    case 'HIGH': return 'bg-amber-500/15 text-amber-400 border border-amber-500/25';
+    case 'LOW': return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25';
+    case 'ERASURE': return 'bg-purple-500/15 text-purple-400 border border-purple-500/25';
+    default: return 'bg-slate-500/15 text-slate-400 border border-slate-500/25';
+  }
+}
+
+const COUNTRY_CODE_MAP: Record<string, string> = {
+  US: 'United States', USA: 'United States', UK: 'United Kingdom', GB: 'United Kingdom',
+  DE: 'Germany', FR: 'France', IT: 'Italy', ES: 'Spain', NL: 'Netherlands', BE: 'Belgium',
+  CH: 'Switzerland', AT: 'Austria', SE: 'Sweden', NO: 'Norway', DK: 'Denmark', FI: 'Finland',
+  IE: 'Ireland', PT: 'Portugal', PL: 'Poland', CZ: 'Czech Republic', GR: 'Greece',
+  CN: 'China', JP: 'Japan', IN: 'India', AU: 'Australia', CA: 'Canada', MX: 'Mexico',
+  BR: 'Brazil', KR: 'South Korea', SG: 'Singapore', ZA: 'South Africa', RU: 'Russia',
+};
+
+function formatActionLabel(action: string): string {
+  if (!action) return '—';
+  const parts = action.split('_');
+  const formatted: string[] = [];
+  const PREPOSITIONS = new Set(['to', 'from', 'for', 'with']);
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    const upper = p.toUpperCase();
+    if (COUNTRY_CODE_MAP[upper]) {
+      formatted.push(COUNTRY_CODE_MAP[upper]);
+    } else if (p === 'transfer' && parts[i + 1] === 'data') {
+      formatted.push('Data Transfer');
+    } else if (p === 'data' && parts[i - 1] === 'transfer') {
+      continue;
+    } else if (PREPOSITIONS.has(p.toLowerCase())) {
+      formatted.push(p.toLowerCase());
+    } else {
+      formatted.push(p.charAt(0).toUpperCase() + p.slice(1).toLowerCase());
+    }
+  }
+  return formatted.filter(Boolean).join(' ');
+}
 
 export default function TransferDetailPage() {
   const params = useParams();
@@ -14,8 +82,9 @@ export default function TransferDetailPage() {
   const [reviewItem, setReviewItem] = useState<ReviewQueueItem | null>(null);
   const [evidenceEvent, setEvidenceEvent] = useState<EvidenceEvent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<'approve' | 'reject' | null>(null);
+  const [actionLoading, setActionLoading] = useState<'reject' | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [decisionReason, setDecisionReason] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -84,7 +153,7 @@ export default function TransferDetailPage() {
     setActionError(null);
     setActionLoading('reject');
     try {
-      await rejectReviewQueueItem(sealId);
+      await rejectReviewQueueItem(sealId, decisionReason);
       router.push('/review-queue');
     } catch (e) {
       setActionError(e instanceof Error ? e.message : 'Failed to reject');
@@ -93,19 +162,7 @@ export default function TransferDetailPage() {
     }
   };
 
-  const handleApprove = async () => {
-    if (!sealId) return;
-    setActionError(null);
-    setActionLoading('approve');
-    try {
-      await approveReviewQueueItem(sealId);
-      router.push('/review-queue');
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Failed to approve');
-    } finally {
-      setActionLoading(null);
-    }
-  };
+  const reasonValid = decisionReason.trim().length >= 10;
 
   if (loading) {
     return (
@@ -154,21 +211,9 @@ export default function TransferDetailPage() {
             <h1 className="text-2xl font-bold text-white">Transfer Detail</h1>
             <p className="text-sm text-slate-400">Review transfer details and compliance status</p>
           </div>
-          <div className="flex items-center gap-2">
-            {actionError && (
-              <span className="text-sm text-red-400 mr-2">{actionError}</span>
-            )}
-            {isPending && !isMissingSCC && (
-              <button
-                onClick={handleApprove}
-                disabled={!!actionLoading}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <CheckCircle className="w-4 h-4" />
-                {actionLoading === 'approve' ? 'Approving…' : 'Approve'}
-              </button>
-            )}
-          </div>
+          {actionError && (
+            <span className="text-sm text-red-400">{actionError}</span>
+          )}
         </div>
 
         {/* Status Banner */}
@@ -233,18 +278,18 @@ export default function TransferDetailPage() {
               <div>
                 <p className="text-xs text-slate-400 mb-2">Applicable Regulations:</p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-medium">
+                  <span className="px-2 py-1 bg-blue-500/15 text-blue-400 border border-blue-500/25 rounded text-xs font-medium">
                     GDPR Art. 44-49
                   </span>
-                  <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-medium">
+                  <span className="px-2 py-1 bg-blue-500/15 text-blue-400 border border-blue-500/25 rounded text-xs font-medium">
                     GDPR Art. 22
                   </span>
                   {isMissingSCC && (
-                    <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded text-xs font-medium">
+                    <span className="px-2 py-1 bg-amber-500/15 text-amber-400 border border-amber-500/25 rounded text-xs font-medium">
                       GDPR Art. 46
                     </span>
                   )}
-                  <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs font-medium">
+                  <span className="px-2 py-1 bg-purple-500/15 text-purple-400 border border-purple-500/25 rounded text-xs font-medium">
                     EU AI Act Art. 14
                   </span>
                 </div>
@@ -302,7 +347,16 @@ export default function TransferDetailPage() {
 
                 <div>
                   <label className="text-xs text-slate-400 uppercase tracking-wider">Action</label>
-                  <div className="mt-1 text-white">{reviewItem.action}</div>
+                  <div className="mt-1 text-white">
+                    {(() => {
+                      const label = formatActionLabel(reviewItem.action);
+                      const dest = (destinationCountry || '').trim();
+                      if ((!dest || dest === 'Unknown') && (label === 'Data Transfer to' || label.endsWith(' to'))) {
+                        return 'Data Transfer to Unknown Destination';
+                      }
+                      return label;
+                    })()}
+                  </div>
                 </div>
 
                 {reviewItem.context?.data_categories && (
@@ -368,13 +422,8 @@ export default function TransferDetailPage() {
                     <div>
                       <label className="text-xs text-slate-400 uppercase tracking-wider">Severity</label>
                       <div className="mt-1">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          evidenceEvent.severity === 'L1' ? 'bg-red-500/20 text-red-400' :
-                          evidenceEvent.severity === 'L2' ? 'bg-orange-500/20 text-orange-400' :
-                          evidenceEvent.severity === 'L3' ? 'bg-yellow-500/20 text-yellow-400' :
-                          'bg-blue-500/20 text-blue-400'
-                        }`}>
-                          {evidenceEvent.severity}
+                        <span className={`px-2 py-1 rounded text-xs font-medium border ${getSeverityBadgeClass(getDerivedSeverity(evidenceEvent))}`}>
+                          {getDerivedSeverity(evidenceEvent)}
                         </span>
                       </div>
                     </div>
@@ -389,28 +438,42 @@ export default function TransferDetailPage() {
                   </div>
                 )}
 
-                {/* Actions - bottom right */}
+                {/* Decision reason + Actions */}
                 {(isPending || isMissingSCC) && (
-                  <div className="pt-4 mt-4 border-t border-slate-700 flex justify-end gap-2">
-                    {isMissingSCC && (
-                      <button
-                        onClick={handleAddSCC}
-                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                      >
-                        <FileText className="w-4 h-4" />
-                        Add SCC
-                      </button>
-                    )}
+                  <div className="pt-4 mt-4 border-t border-slate-700 space-y-4">
                     {isPending && (
-                      <button
-                        onClick={handleReject}
-                        disabled={!!actionLoading}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        {actionLoading === 'reject' ? 'Rejecting…' : 'Reject'}
-                      </button>
+                      <div>
+                        <textarea
+                          value={decisionReason}
+                          onChange={e => setDecisionReason(e.target.value)}
+                          placeholder="Add reason for audit record (required for GDPR Art. 22 compliance)..."
+                          className="bg-slate-900 border border-slate-700 rounded p-3 text-sm w-full text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 focus:border-slate-500 resize-y min-h-[80px]"
+                          rows={3}
+                        />
+                      </div>
                     )}
+                    <div className="flex justify-end gap-2 flex-wrap">
+                      {isMissingSCC && (
+                        <button
+                          onClick={handleAddSCC}
+                          className="px-4 py-2 bg-amber-500/15 text-amber-400 border border-amber-500/25 hover:bg-amber-500/25 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                          disabled={!!actionLoading}
+                        >
+                          <FileText className="w-4 h-4" />
+                          Add SCC
+                        </button>
+                      )}
+                      {isPending && (
+                        <button
+                            onClick={handleReject}
+                            disabled={!!actionLoading || !reasonValid}
+                            className="px-4 py-2 bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            {actionLoading === 'reject' ? 'Rejecting…' : 'Reject'}
+                          </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

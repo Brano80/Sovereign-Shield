@@ -135,6 +135,17 @@ pub async fn create_event(pool: &PgPool, params: CreateEventParams) -> Result<Ev
     })
 }
 
+/// Count distinct source_system chains that have at least one event with nexus_seal (sealed chain roots)
+pub async fn count_sealed_chain_roots(pool: &PgPool) -> Result<i64, String> {
+    let count: Option<i64> = sqlx::query_scalar(
+        "SELECT COUNT(DISTINCT source_system) FROM evidence_events WHERE nexus_seal IS NOT NULL AND nexus_seal != ''"
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(count.unwrap_or(0))
+}
+
 pub async fn list_events(
     pool: &PgPool,
     severity: Option<&str>,
@@ -157,7 +168,7 @@ pub async fn list_events(
     if search.is_some() {
         bind_idx += 1;
         conditions.push(format!(
-            "(event_id ILIKE '%' || ${idx} || '%' OR event_type ILIKE '%' || ${idx} || '%' OR CAST(payload AS TEXT) ILIKE '%' || ${idx} || '%')",
+            "(event_id ILIKE '%' || ${idx} || '%' OR correlation_id ILIKE '%' || ${idx} || '%' OR event_type ILIKE '%' || ${idx} || '%' OR CAST(payload AS TEXT) ILIKE '%' || ${idx} || '%')",
             idx = bind_idx
         ));
     }

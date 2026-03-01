@@ -6,10 +6,10 @@ import { Globe, FileText, Shield, ClipboardCheck, List, MapPin } from 'lucide-re
 
 const navItems = [
   { href: '/', label: 'Sovereign Shield', icon: Globe },
-  { href: '/transfer-log', label: 'Transfer Log', icon: List },
   { href: '/review-queue', label: 'Review Queue', icon: ClipboardCheck },
   { href: '/scc-registry', label: 'SCC Registry', icon: FileText },
   { href: '/adequate-countries', label: 'Adequate Countries', icon: MapPin },
+  { href: '/transfer-log', label: 'Transfer Log', icon: List },
   { href: '/evidence-vault', label: 'Evidence Vault', icon: Shield },
 ];
 
@@ -20,7 +20,10 @@ export default function Sidebar() {
     <div className="w-64 bg-slate-800 border-r border-slate-700 h-screen fixed left-0 top-0 overflow-y-auto">
       <div className="p-6">
         <div className="mb-8">
-          <h1 className="text-xl font-bold text-white mb-1">VERIDION NEXUS</h1>
+          <h1 className="flex items-baseline gap-1.5 mb-1" style={{ fontFamily: "Inter, sans-serif" }}>
+            <span className="text-xl font-black italic uppercase text-white" style={{ letterSpacing: "-0.05em", lineHeight: 0.85 }}>VERIDION</span>
+            <span className="text-base font-semibold italic lowercase" style={{ color: "#10b981", letterSpacing: "-0.02em", filter: "drop-shadow(0 0 15px rgba(16, 185, 129, 0.3))" }}>nexus</span>
+          </h1>
           <p className="text-xs text-slate-400">Compliance Dashboard v1.0.0</p>
         </div>
         <nav className="space-y-1">

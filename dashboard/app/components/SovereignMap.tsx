@@ -3,6 +3,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import WorldMap from './WorldMap';
 import { EvidenceEvent } from '../utils/api';
+import {
+  EU_EEA_COUNTRIES,
+  SCC_REQUIRED_COUNTRIES,
+  BLOCKED_COUNTRIES,
+  ADEQUATE_COUNTRIES,
+  COUNTRY_NAMES,
+  TOPOJSON_COUNTRY_NAMES,
+  getCountryCodeFromName,
+} from '../config/countries';
 
 interface SovereignMapProps {
   evidenceEvents?: EvidenceEvent[];
@@ -17,79 +26,6 @@ interface CountryData {
   transfers: number;
 }
 
-// EU/EEA countries (GDPR Art. 44-49 - no transfer restrictions within EU/EEA)
-const EU_EEA_COUNTRIES = new Set([
-  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT',
-  'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'IS', 'LI', 'NO'
-]);
-
-// SCC-required countries (align with Adequate Countries page): US, IN, AU, BR, MX, SG, ZA, etc.
-const SCC_REQUIRED_COUNTRIES = new Set(['US', 'IN', 'AU', 'BR', 'MX', 'SG', 'ZA', 'ID', 'TR', 'PH', 'VN', 'EG', 'NG', 'PK', 'BD', 'TH', 'MY']);
-// Blocked countries (align with Adequate Countries page): CN, RU, KP, IR, SY, BY
-const BLOCKED_COUNTRIES = new Set(['CN', 'RU', 'KP', 'IR', 'SY', 'BY']);
-
-// Adequate countries (EU-recognised)
-const ADEQUATE_COUNTRIES = new Set([
-  'AD', 'AR', 'CA', 'FO', 'GG', 'IL', 'IM', 'JP', 'JE', 'NZ', 'KR', 'CH', 'GB', 'UY'
-]);
-
-// TopoJSON country name mapping (TopoJSON uses full country names, not codes)
-const countryNames: Record<string, string> = {
-  'DE': 'Germany',
-  'CN': 'China',
-  'RU': 'Russia',
-  'US': 'United States of America',
-  'GB': 'United Kingdom',
-  'FR': 'France',
-  'IT': 'Italy',
-  'ES': 'Spain',
-  'NL': 'Netherlands',
-  'BE': 'Belgium',
-  'AT': 'Austria',
-  'SE': 'Sweden',
-  'DK': 'Denmark',
-  'NO': 'Norway',
-  'FI': 'Finland',
-  'CH': 'Switzerland',
-  'JP': 'Japan',
-  'AU': 'Australia',
-  'CA': 'Canada',
-  'IN': 'India',
-  'BR': 'Brazil',
-  'MX': 'Mexico',
-  'SG': 'Singapore',
-  'ZA': 'South Africa',
-  'KR': 'South Korea',
-  'NZ': 'New Zealand',
-  'AR': 'Argentina',
-  'UY': 'Uruguay',
-  'IL': 'Israel',
-  'AD': 'Andorra',
-  'FO': 'Faroe Islands',
-  'GG': 'Guernsey',
-  'IM': 'Isle of Man',
-  'JE': 'Jersey',
-  'PL': 'Poland',
-  'PT': 'Portugal',
-  'RO': 'Romania',
-  'SK': 'Slovakia',
-  'SI': 'Slovenia',
-  'GR': 'Greece',
-  'HU': 'Hungary',
-  'IE': 'Ireland',
-  'LV': 'Latvia',
-  'LT': 'Lithuania',
-  'LU': 'Luxembourg',
-  'MT': 'Malta',
-  'CZ': 'Czechia',
-  'EE': 'Estonia',
-  'CY': 'Cyprus',
-  'HR': 'Croatia',
-  'BG': 'Bulgaria',
-  'IS': 'Iceland',
-  'LI': 'Liechtenstein',
-};
-
 const SovereignMap: React.FC<SovereignMapProps> = ({ evidenceEvents = [], isLoading, onCountryClick }) => {
   const [countries, setCountries] = useState<CountryData[]>([]);
 
@@ -99,22 +35,42 @@ const SovereignMap: React.FC<SovereignMapProps> = ({ evidenceEvents = [], isLoad
     }
 
     const now = Date.now();
-    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
     const countryEventMap = new Map<string, { lastTransfer: number; lastBlocked: number; count: number }>();
 
-    // Process events to build country map
+    // Process events to build country map — include any event with valid destination (ALLOW, BLOCK, or REVIEW)
     evidenceEvents.forEach((event: any) => {
       const payload = event.payload || {};
-      const countryCode = (payload.destination_country_code || payload.country_code || '').toUpperCase();
+      const destCode =
+        event.destinationCountryCode ||
+        event.destination_country_code ||
+        payload.destinationCountryCode ||
+        payload.destination_country_code ||
+        payload.country_code;
+      const destCountry =
+        event.destinationCountry ||
+        event.destination_country ||
+        payload.destination_country ||
+        payload.destinationCountry;
+      let countryCode = (destCode || '').trim().toUpperCase();
+      if (!countryCode && destCountry) {
+        countryCode = getCountryCodeFromName(destCountry);
+      }
+      const mappedName = TOPOJSON_COUNTRY_NAMES[countryCode] || COUNTRY_NAMES[countryCode] || countryCode;
+      if (process.env.NODE_ENV === 'development' && countryCode) {
+        console.log('[Map] extracted code:', countryCode, '→ topoName:', mappedName);
+      }
 
       if (!countryCode || countryCode === 'EU' || countryCode === 'UN' || countryCode.length !== 2) {
         return;
       }
 
+      // Include any event with valid destination — case-insensitive, regardless of exact event type
       const eventTime = event.occurredAt || event.recordedAt || event.createdAt;
       if (!eventTime) return;
 
       const eventTimestamp = new Date(eventTime).getTime();
+      if (eventTimestamp < thirtyDaysAgo) return;
 
       if (!countryEventMap.has(countryCode)) {
         countryEventMap.set(countryCode, { lastTransfer: 0, lastBlocked: 0, count: 0 });
@@ -123,12 +79,12 @@ const SovereignMap: React.FC<SovereignMapProps> = ({ evidenceEvents = [], isLoad
       const countryEvents = countryEventMap.get(countryCode)!;
       countryEvents.count += 1;
 
-      if (event.eventType === 'DATA_TRANSFER') {
-        if (eventTimestamp >= sevenDaysAgo) {
-          countryEvents.lastTransfer = Math.max(countryEvents.lastTransfer, eventTimestamp);
-        }
-      } else if (event.eventType === 'DATA_TRANSFER_BLOCKED') {
+      const eventType = (event.eventType || '').toUpperCase();
+      const isBlocked = eventType.includes('BLOCK') || (event.verificationStatus || '').toUpperCase() === 'BLOCK';
+      if (isBlocked) {
         countryEvents.lastBlocked = Math.max(countryEvents.lastBlocked, eventTimestamp);
+      } else {
+        countryEvents.lastTransfer = Math.max(countryEvents.lastTransfer, eventTimestamp);
       }
     });
 
@@ -136,9 +92,10 @@ const SovereignMap: React.FC<SovereignMapProps> = ({ evidenceEvents = [], isLoad
     const convertedCountries: CountryData[] = [];
 
     countryEventMap.forEach((events, countryCode) => {
-      const hasRecentTransfer = events.lastTransfer >= sevenDaysAgo;
+      const hasRecentTransfer = events.lastTransfer >= thirtyDaysAgo;
       const hasBlocked = events.lastBlocked > 0;
 
+      // Show country if it had any transfer activity (ALLOW, BLOCK, or REVIEW) in last 30 days
       if (!hasRecentTransfer && !hasBlocked) {
         return;
       }
@@ -160,12 +117,12 @@ const SovereignMap: React.FC<SovereignMapProps> = ({ evidenceEvents = [], isLoad
         status = 'scc_required';
       }
 
-      // Use TopoJSON country name (full name, not code)
-      const mappedName = countryNames[countryCode] || countryCode;
+      // Use TopoJSON country name — TOPOJSON_COUNTRY_NAMES has exact names (e.g. "United States of America" for US)
+      const mappedName = TOPOJSON_COUNTRY_NAMES[countryCode] || COUNTRY_NAMES[countryCode] || countryCode;
 
       convertedCountries.push({
         code: countryCode,
-        name: mappedName, // TopoJSON uses full country names
+        name: mappedName,
         status: status,
         transfers: events.count,
         mechanisms: 0,
